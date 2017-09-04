@@ -34,3 +34,7 @@ data[:, 0] = x
 data[:, 1:] = np.abs(psi)
 
 np.savetxt('result.dat', data)
+
+print "Eigen energy:"
+print E[:10], "..."
+print E[-10:]
