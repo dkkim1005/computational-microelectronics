@@ -3,7 +3,6 @@
 #include <cmath>
 #include <assert.h>
 #include <fstream>
-#include <numeric>
 
 // compile : g++ -o filename hw1.cpp -std=c++14 -lopenblas -llapack
 
