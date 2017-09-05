@@ -6,10 +6,11 @@
 
 // compile : g++ -o filename hw1.cpp -std=c++14 -lopenblas -llapack
 
+#define MAX(a, b) (a>b ? a : b)
+#define MIN(a, b) (a>b ? b : a)
+
 namespace LAPACK_SOLVER
 {
-
-#define MAX(a, b) a>b ? a : b
 
 	using dvector = std::vector<double>;
 
@@ -127,7 +128,7 @@ void set_norm(std::vector<double>& A, const double a)
 int main(int argc, char* argv[])
 {
 	// The number of width for discritization.
-	const int N = std::atoi(argv[1]);
+	const int N = std::atoi(argv[1]), Ncut = 100;
 	assert(N%2 == 1);
 	// open a file object to record numeric solutions.
 	std::ofstream outFile(argv[2]);
@@ -163,27 +164,29 @@ int main(int argc, char* argv[])
 	}
 
 	// record numeric solution from the ground state to the N'th excited state.
+
 	outFile << x[0] << " ";
-	for(int i=0; i<N-2; ++i) {
+	for(int i=0; i<MIN(N, Ncut)-2; ++i) {
 		outFile << 0. << " ";
 	}
 	outFile<<std::endl;
 
+
 	for(int i=1; i<N-1; ++i)
 	{
 		outFile << x[i] << " ";
-		for(int j=0; j<N-2; ++j) {
+		for(int j=0; j<MIN(N, Ncut)-2; ++j) {
 			outFile << A[(N-2)*(i-1) + j] << " ";
 		}
 		outFile<<std::endl;
 	}
 
 	outFile << x[N - 1] << " ";
-	for(int i=0; i<N-2; ++i) {
+	for(int i=0; i<MIN(N, Ncut)-2; ++i) {
 		outFile << 0. << " ";
 	}
 
 	outFile.close();
-
+	
 	return 0;
 }
