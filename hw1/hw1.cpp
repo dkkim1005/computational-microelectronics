@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
 	assert(outFile.is_open());
 	const double HBAR = 6.62607004e-34/(2*M_PI),
 			M = 9.10938356e-31,
-			a = 1e-10;
+			a = 1e-9;
 	const double da = a/(N - 1.);
 	const double coeff = -std::pow(HBAR, 2)/(2.*M*std::pow(da, 2));
 

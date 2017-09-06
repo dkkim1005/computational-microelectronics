@@ -4,7 +4,7 @@ import numpy as np
 #The exact results for the Schrodinger equation in 1-D infinite potential wall.
 hbar = 6.62607004e-34/(2*np.pi) #(m^2 kg / s)
 m    = 9.10938356e-31 #(kg)
-a    = 1e-10
+a    = 1e-9
 N    = 10000
 da   = a/(N - 1.) # da = a/(N-1)
 Ncut = 100

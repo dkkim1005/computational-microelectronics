@@ -62,8 +62,8 @@ namespace LAPACK_SOLVER
 
 namespace
 {
-	template<class EPSOBJECT>
-	void matrix_construction(const EPSOBJECT& eps,
+	template<class EPSFUNCTOR>
+	void matrix_construction(const EPSFUNCTOR& eps,
 				 std::vector<double>& A, std::vector<double>& x)
 	{
 		assert(A.size() == std::pow(x.size(), 2));
