@@ -89,55 +89,52 @@ namespace
 }
 
 
-
 int main(int argc, char* argv[])
 {
 	const int N = std::atoi(argv[1]);
 	std::ofstream ofile(argv[2]);
 	assert(ofile.is_open());
 
+	const double eps_0 = 8.8541878*1e-12; // [C^2 / (m^2*N)]
+
 	struct MaterialInfo
 	{
 		// tickness of the silicon and silicon dioxide
-		const double T_SI = 5e-3, T_Di = 5e-3; //(m)
+		const double T_Si = 1e-3, T_Di = 9e-3; //(m)
 		// Relative permittivity(silicon, silicon dioxide)
-		const double Er_SI = 11.68, Er_Di = 3.9; 
+		const double Er_Si = 11.68, Er_Di = 3.9; 
 	};
 
 	MaterialInfo info;
 
+	std::vector<double> A(N*N, 0), pi(N, 0);
+
+	// set boundary conditions
+	pi[0] = 1; pi[N-1] = 3;
+
 	// define a functor for the position dependent permittivity(xi: 0 to T_TOT)
 	auto eps = [&info](const double xi) -> double
 		{
-			/*
-				silicon dioxide
-		 	x |-------------------------
-				    silicon
-			*/
+			/*   silicon  | silicon dioxide
+		 	x 0|---------T_Si---------------*/
 			double result = 0;
 
-			if(info.T_SI > xi) {
-				result = info.Er_SI;
+			if(info.T_Si > xi) {
+				result = info.Er_Si;
 			}
 			else {
 				result = info.Er_Di;
 			}
-
 			return result;
 		};
 
-	const double T_TOT = info.T_SI + info.T_Di;
+	const double T_TOT = info.T_Si + info.T_Di;
 
 	// x : from 0 to T_TOT
 	std::vector<double> x(N, 0);
 	for(int i=0; i<N; ++i) {
 		x[i] = i*T_TOT/(N - 1.);
 	}
-
-	std::vector<double> A(N*N, 0), pi(N, 0);
-
-	// set boundary conditions
-	pi[0] = 1; pi[N-1] = 3;
 
 	::matrix_construction(eps, A, x);
 
@@ -147,6 +144,24 @@ int main(int argc, char* argv[])
 	for(int i=0; i<N; ++i) {
 		ofile<<x[i]<<" "<<pi[i]<<"\n";
 	}
+
+	const double E_Si = (pi[1] - pi[0])/(x[1] - x[0]), E_Di = (pi[N-1] - pi[N-2])/(x[N-1] - x[N-2]);
+	const double V_Si = E_Si*info.T_Si, V_Di = E_Di*info.T_Di;
+	const double V = V_Si + V_Di;
+
+	std::cout<<"  E(Si) : "<<E_Si<<" [N/(C*m^2)]"<<std::endl;
+	std::cout<<"  E(Di) : "<<E_Di<<" [C/(C*m^2)]"<<std::endl;
+
+	const double Q = (E_Si*info.Er_Si + E_Di*info.Er_Di)*eps_0/2.;
+
+	std::cout<<"  V(Si) : "<<V_Si<<" [N/(C*m)]"<<std::endl;
+	std::cout<<"  V(Di) : "<<V_Di<<" [N/(C*m)]"<<std::endl;
+	std::cout<<"  total V : "<<V_Si + V_Di<<" [N/(C*m)]"<<std::endl;
+	std::cout<<"  total capacitance : "<<Q/V<<" [C/V*m^2]"<<std::endl;
+	std::cout<<"-----------------------------"<<std::endl;	
+	std::cout<<"  In theory ::\n  total capacitance :"
+		 <<1./(info.T_Si/info.Er_Si  + info.T_Di/info.Er_Di)*eps_0
+		 <<" [C/V*m^2]"<<std::endl;
 
 	return 0;
 }
