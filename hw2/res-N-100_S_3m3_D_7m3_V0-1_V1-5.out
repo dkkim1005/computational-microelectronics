@@ -1,0 +1,9 @@
+  E(Si) : 167.338 [N/(C*m^2)]
+  E(Di) : 501.157 [C/(C*m^2)]
+  V(Si) : 0.502015 [N/(C*m)]
+  V(Di) : 3.5081 [N/(C*m)]
+  total V : 4.01012 [N/(C*m)]
+  total capacitance : 4.31549e-09 [C/V*m^2]
+-----------------------------
+  In theory ::
+  total capacitance :4.31549e-09 [C/V*m^2]
