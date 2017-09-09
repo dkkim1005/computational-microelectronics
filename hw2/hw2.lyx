@@ -1,0 +1,587 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Home work 2
+\end_layout
+
+\begin_layout Author
+Dongkyu Kim(20162050)
+\end_layout
+
+\begin_layout Section*
+Relative permittivity 
+\begin_inset Formula $\epsilon_{r}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Relative permititivities at room temperature
+\end_layout
+
+\begin_layout Standard
+Silicon(
+\begin_inset Formula $\epsilon_{r,s}$
+\end_inset
+
+) : 
+\begin_inset Formula $11.68$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Silicon dioxide(
+\begin_inset Formula $\epsilon_{r,d}$
+\end_inset
+
+) : 
+\begin_inset Formula $3.9$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case1
+\end_layout
+
+\begin_layout Standard
+Thickness[
+\begin_inset Formula $m$
+\end_inset
+
+] : 
+\begin_inset Formula $3\times10^{-3}$
+\end_inset
+
+(silicon), 
+\begin_inset Formula $7\times10^{-3}$
+\end_inset
+
+(silicon dioxide)
+\begin_inset Newline newline
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename S-3m3_D-7m3_V0-1_V1-3.pdf
+	scale 20
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The position 
+\begin_inset Formula $x$
+\end_inset
+
+ versus electric potential 
+\begin_inset Formula $V(x)$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+The boundary conditions for 
+\begin_inset Formula $V(x)$
+\end_inset
+
+ : 
+\begin_inset Formula $V(x=0)=1$
+\end_inset
+
+ and 
+\begin_inset Formula $V(x=10^{-2})=3$
+\end_inset
+
+ where 
+\begin_inset Formula $0\leq x\leq10^{-2}$
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The silicon domain is 
+\begin_inset Formula $0\leq x\leq3\times10^{-3}$
+\end_inset
+
+ and the silicon dioxide is 
+\begin_inset Formula $3\times10^{-3}\leq x\leq10^{-2}$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $4.31\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (numeric)
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $4.31\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (theory)
+\end_layout
+
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename S-3m3_D-7m3_V0-1_V1-5.pdf
+	scale 20
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The position 
+\begin_inset Formula $x$
+\end_inset
+
+ versus electric potential 
+\begin_inset Formula $V(x)$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+The boundary conditions for 
+\begin_inset Formula $V(x)$
+\end_inset
+
+ : 
+\begin_inset Formula $V(x=0)=1$
+\end_inset
+
+ and 
+\begin_inset Formula $V(x=10^{-2})=5$
+\end_inset
+
+ where 
+\begin_inset Formula $0\leq x\leq10^{-2}$
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The silicon domain is 
+\begin_inset Formula $0\leq x\leq3\times10^{-3}$
+\end_inset
+
+ and the silicon dioxide is 
+\begin_inset Formula $3\times10^{-3}\leq x\leq10^{-2}$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $4.31\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (numeric)
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $4.31\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (theory)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case2
+\end_layout
+
+\begin_layout Standard
+thickness[
+\begin_inset Formula $m$
+\end_inset
+
+] : 
+\begin_inset Formula $5\times10^{-3}$
+\end_inset
+
+(silicon), 
+\begin_inset Formula $5\times10^{-3}$
+\end_inset
+
+(silicon dioxide)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename S-5m3_D-5m3_V0-1_V1-3.pdf
+	scale 20
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The position 
+\begin_inset Formula $x$
+\end_inset
+
+ versus electric potential 
+\begin_inset Formula $V(x)$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+The boudary conditions for 
+\begin_inset Formula $V(x)$
+\end_inset
+
+ : 
+\begin_inset Formula $V(x=0)=1$
+\end_inset
+
+ and 
+\begin_inset Formula $V(x=10^{-2})=3$
+\end_inset
+
+ where 
+\begin_inset Formula $0\leq x\leq10^{-2}$
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The silicon domain is 
+\begin_inset Formula $0\leq x\leq5\times10^{-3}$
+\end_inset
+
+ and the silicon dioxide is 
+\begin_inset Formula $5\times10^{-3}\leq x\leq10^{-2}$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $5.18\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (numeric)
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $5.18\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (theory)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename S-5m3_D-5m3_V0-1_V1-5.pdf
+	scale 20
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The position 
+\begin_inset Formula $x$
+\end_inset
+
+ versus electric potential 
+\begin_inset Formula $V(x)$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+The boundary conditions for 
+\begin_inset Formula $V(x)$
+\end_inset
+
+ : 
+\begin_inset Formula $V(x=0)=1$
+\end_inset
+
+ and 
+\begin_inset Formula $V(x=10^{-2})=5$
+\end_inset
+
+ where 
+\begin_inset Formula $0\leq x\leq10^{-2}$
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The silicon domain is 
+\begin_inset Formula $0\leq x\leq5\times10^{-3}$
+\end_inset
+
+ and the silicon dioxide is 
+\begin_inset Formula $5\times10^{-3}\leq x\leq10^{-2}$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $5.18\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (numeric)
+\begin_inset Newline newline
+\end_inset
+
+Capacitance per area: 
+\begin_inset Formula $5.18\times10^{-9}$
+\end_inset
+
+[
+\begin_inset Formula $C^{2}/Nm^{3}$
+\end_inset
+
+] (theory)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
