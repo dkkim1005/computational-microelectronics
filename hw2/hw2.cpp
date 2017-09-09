@@ -92,7 +92,7 @@ namespace
 int main(int argc, char* argv[])
 {
 	const int N = std::atoi(argv[1]);
-	std::ofstream ofile(argv[2]);
+	std::ofstream ofile(("pi-" + std::string(argv[2])).c_str());
 	assert(ofile.is_open());
 
 	const double eps_0 = 8.8541878*1e-12; // [C^2 / (m^2*N)]
@@ -100,19 +100,21 @@ int main(int argc, char* argv[])
 	struct MaterialInfo
 	{
 		// tickness of the silicon and silicon dioxide
-		const double T_Si = 1e-3, T_Di = 9e-3; //(m)
+		const double T_Si = 3e-3, T_Di = 7e-3; //(m)
 		// Relative permittivity(silicon, silicon dioxide)
 		const double Er_Si = 11.68, Er_Di = 3.9; 
 	};
 
 	MaterialInfo info;
 
+	const double T_TOT = info.T_Si + info.T_Di;
+
 	std::vector<double> A(N*N, 0), pi(N, 0);
 
 	// set boundary conditions
-	pi[0] = 1; pi[N-1] = 3;
+	pi[0] = 1; pi[N-1] = 5;
 
-	// define a functor for the position dependent permittivity(xi: 0 to T_TOT)
+	// define a lambda function for the position dependent permittivity(xi: 0 to T_TOT)
 	auto eps = [&info](const double xi) -> double
 		{
 			/*   silicon  | silicon dioxide
@@ -128,7 +130,6 @@ int main(int argc, char* argv[])
 			return result;
 		};
 
-	const double T_TOT = info.T_Si + info.T_Di;
 
 	// x : from 0 to T_TOT
 	std::vector<double> x(N, 0);
@@ -145,23 +146,26 @@ int main(int argc, char* argv[])
 		ofile<<x[i]<<" "<<pi[i]<<"\n";
 	}
 
+	ofile.close();
+
+	ofile.open(("res-" + std::string(argv[2])).c_str());
 	const double E_Si = (pi[1] - pi[0])/(x[1] - x[0]), E_Di = (pi[N-1] - pi[N-2])/(x[N-1] - x[N-2]);
 	const double V_Si = E_Si*info.T_Si, V_Di = E_Di*info.T_Di;
 	const double V = V_Si + V_Di;
 
-	std::cout<<"  E(Si) : "<<E_Si<<" [N/(C*m^2)]"<<std::endl;
-	std::cout<<"  E(Di) : "<<E_Di<<" [C/(C*m^2)]"<<std::endl;
+	ofile << "  E(Si) : " << E_Si << " [N/(C*m^2)]" << std::endl
+	      << "  E(Di) : " << E_Di << " [C/(C*m^2)]" << std::endl;
 
 	const double Q = (E_Si*info.Er_Si + E_Di*info.Er_Di)*eps_0/2.;
 
-	std::cout<<"  V(Si) : "<<V_Si<<" [N/(C*m)]"<<std::endl;
-	std::cout<<"  V(Di) : "<<V_Di<<" [N/(C*m)]"<<std::endl;
-	std::cout<<"  total V : "<<V_Si + V_Di<<" [N/(C*m)]"<<std::endl;
-	std::cout<<"  total capacitance : "<<Q/V<<" [C/V*m^2]"<<std::endl;
-	std::cout<<"-----------------------------"<<std::endl;	
-	std::cout<<"  In theory ::\n  total capacitance :"
-		 <<1./(info.T_Si/info.Er_Si  + info.T_Di/info.Er_Di)*eps_0
-		 <<" [C/V*m^2]"<<std::endl;
+	ofile << "  V(Si) : " << V_Si << " [N/(C*m)]" << std::endl
+	      << "  V(Di) : " << V_Di << " [N/(C*m)]" << std::endl
+	      << "  total V : " << V_Si + V_Di << " [N/(C*m)]" << std::endl
+	      << "  total capacitance : " << Q/V << " [C/V*m^2]" << std::endl
+	      << "-----------------------------" << std::endl
+	      << "  In theory ::\n  total capacitance :"
+	      << 1./(info.T_Si/info.Er_Si  + info.T_Di/info.Er_Di)*eps_0
+	      << " [C/V*m^2]" << std::endl;
 
 	return 0;
 }
