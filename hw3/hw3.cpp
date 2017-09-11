@@ -123,7 +123,7 @@ namespace ROOT_FINDING
 
 			double cost = std::sqrt(std::inner_product(f.begin(), f.end(), f.begin(), 0.));
 
-			std::cout<<"iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
+			std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
 
 			if(cost < tol) 
 			{
@@ -147,8 +147,6 @@ namespace ROOT_FINDING
 }
 
 
-// (x+y)^2 - 3 = 0
-// x - 2y - 4
 class derivedObject : public ROOT_FINDING::objectBase 
 {
 public:
@@ -159,7 +157,7 @@ private:
 	{
 		double result = 0;
 		if(i == 0) {
-			result = std::pow(root[0] + root[1], 2) - 3;
+			result = std::pow(root[0] + root[1], 2) - 3*root[1] - 5;
 		}
 		else if(i == 1) {
 			result = root[0] - 2*root[1] - 4;
