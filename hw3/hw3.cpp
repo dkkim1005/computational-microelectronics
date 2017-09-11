@@ -80,7 +80,7 @@ namespace ROOT_FINDING
 
 		virtual void jacobian(const dvector& root, dvector& J) const
        		{
-	                const double h = 1e-7;
+	                const double h = 5e-8;
 			dvector root_pdh(&root[0], &root[0] + _Ndim), root_mdh(&root[0], &root[0] + _Ndim);
 
        	 	        for(int i=0;i<_Ndim;++i)
@@ -149,10 +149,10 @@ namespace ROOT_FINDING
 
 // (x+y)^2 - 3 = 0
 // x - 2y - 4
-class tester : public ROOT_FINDING::objectBase 
+class derivedObject : public ROOT_FINDING::objectBase 
 {
 public:
-	explicit tester() : objectBase(2) {}
+	explicit derivedObject() : objectBase(2) {}
 
 private:
 	virtual double _residual(const double* root, const int i) const
@@ -176,7 +176,7 @@ private:
 
 int main(int argc, char* argv[])
 {
-	tester object;
+	derivedObject object;
 	std::vector<double> root = {1, 1};
 
 	ROOT_FINDING::newton_method(object, root);
