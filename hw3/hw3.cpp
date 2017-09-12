@@ -73,6 +73,8 @@ namespace ROOT_FINDING
 {
 	using dvector = std::vector<double>;
 
+
+
 	class objectBase
 	{
 	public:
@@ -80,32 +82,9 @@ namespace ROOT_FINDING
 		virtual ~objectBase() {}
 
 
-		void residue(const dvector& root, dvector& f) const
-		{
-			for(int i=0; i<_Ndim; ++i) {
-				f[i] = _residual(&root[0], i);
-			}
-		}
+		void residue(const dvector& root, dvector& f) const;
 
-		virtual void jacobian(const dvector& root, dvector& J) const
-       		{
-	                const double h = 5e-8;
-			dvector root_pdh(&root[0], &root[0] + _Ndim), root_mdh(&root[0], &root[0] + _Ndim);
-
-       	 	        for(int i=0;i<_Ndim;++i)
-			{
-                        	for(int j=0;j<_Ndim;++j)
-                        	{
-                                	root_pdh[j] += h;
-                                	root_mdh[j] -= h;
-
-                                	J[i*_Ndim + j] = (_residual(&root_pdh[0], i) - _residual(&root_mdh[0], i))/(2.*h);
-
-                                	root_pdh[j] -= h;
-                                	root_mdh[j] += h;
-                        	}
-                	}
-        	}
+		virtual void jacobian(const dvector& root, dvector& J) const;
 
 		int size() const {
 			return _Ndim;
@@ -114,8 +93,36 @@ namespace ROOT_FINDING
 	protected:
 		const int _Ndim;
 
-		virtual double _residual(const double* root, const int& i) const = 0 ;
+		virtual double _residual(const dvector& root, const int& i) const = 0 ;
 	};
+
+	void objectBase::residue(const dvector& root, dvector& f) const
+	{
+		for(int i=0; i<_Ndim; ++i) {
+			f[i] = _residual(root, i);
+		}
+	}
+	
+	void objectBase::jacobian(const dvector& root, dvector& J) const
+       	{
+                const double h = 5e-8;
+		dvector root_pdh(&root[0], &root[0] + _Ndim), root_mdh(&root[0], &root[0] + _Ndim);
+
+       	        for(int i=0;i<_Ndim;++i)
+		{
+                       	for(int j=0;j<_Ndim;++j)
+                       	{
+                               	root_pdh[j] += h;
+                               	root_mdh[j] -= h;
+
+                               	J[i*_Ndim + j] = (_residual(root_pdh, i) - _residual(root_mdh, i))/(2.*h);
+
+                               	root_pdh[j] -= h;
+                               	root_mdh[j] += h;
+                       	}
+               	}
+       	}
+
 
 
 	bool newton_method(const objectBase& object, dvector& root, const size_t niter = 100, const double tol = 1e-7)
@@ -142,7 +149,7 @@ namespace ROOT_FINDING
 
 			object.jacobian(root, J);
 
-			std::memcpy(&up[0], &f[0], sizeof(double)*Ndim);
+			up = f;
 
 			LAPACK_SOLVER::linear_solver(J, up);
 
@@ -156,21 +163,23 @@ namespace ROOT_FINDING
 }
 
 
+
 class xsquare_m_1 : public ROOT_FINDING::objectBase  
 {
 public:
 	xsquare_m_1() :ROOT_FINDING::objectBase(1) {}
 private:
-	virtual double _residual(const double* root, const int& i) const {
+	virtual double _residual(const std::vector<double>& root, const int& i) const {
 		return std::pow(root[0], 2) - 1.;
 	}
 };
 
 
+
 class charge_neutrality : public ROOT_FINDING::objectBase
 {
 public:
-	explicit charge_neutrality()
+	charge_neutrality()
 	: ROOT_FINDING::objectBase(1) {}
 
 	void insert_Nplus(const double& Nplus) {
@@ -178,43 +187,81 @@ public:
 	}
 
 private:
-	virtual double _residual(const double* root, const int& i) const {
+	virtual double _residual(const std::vector<double>& root, const int& i) const {
 		return (_ni*(std::exp(root[0]) - std::exp(-root[0]))/_Nplus) - 1.;
 	}
 
-	const double _ni = 1.5e10; // silicon carrier density at T = 300k (1e10)
+	const double _ni = 1.5e10; // silicon carrier density at T = 300k
 	double _Nplus = 0;
 };
+
+
+
+class multi_charge_neutrality : public ROOT_FINDING::objectBase
+{
+public:
+	explicit multi_charge_neutrality(const int Ndim)
+	: ROOT_FINDING::objectBase(Ndim), _nplusArray(Ndim, 0) {}
+
+	void insert_Nplus(const std::vector<double>& nplusArray) {
+		_nplusArray = nplusArray;
+	}
+
+private:
+	virtual double _residual(const std::vector<double>& root, const int& i) const {
+		return (_ni*(std::exp(root[i]) - std::exp(-root[i]))/_nplusArray[i]) - 1.;
+	}
+
+	const double _ni = 1.5e10; // silicon carrier density at T = 300k (1e10)
+	std::vector<double> _nplusArray;
+};
+
 
 
 int main(int argc, char* argv[])
 {
 	xsquare_m_1 x_eq_object;
 	charge_neutrality charge_eq;
+	multi_charge_neutrality multi_eq(1000);
 
-	std::vector<double> rootp2 = {2.}, rootm2 = {-2}, root3 = {20};
+	const double initialPoint = 20.;
 
-	ROOT_FINDING::newton_method(x_eq_object, rootp2);
-	std::cout<<"  --root(starting: +2): "<<rootp2[0]<<std::endl;
-	ROOT_FINDING::newton_method(x_eq_object, rootm2);
-	std::cout<<"  --root(starting: -2): "<<rootm2[0]<<std::endl;
+	std::vector<double> rootXsq = {2.}, rootCharge = {initialPoint}, rootMulti(multi_eq.size(), initialPoint);
 
-	std::vector<double> nplusArr(100);
+	ROOT_FINDING::newton_method(x_eq_object, rootXsq);
+	std::cout<<"  --root(starting: +2): "<<rootXsq[0]<<std::endl;
+
+	rootXsq[0] = -2;
+
+	ROOT_FINDING::newton_method(x_eq_object, rootXsq);
+	std::cout<<"  --root(starting: -2): "<<rootXsq[0]<<std::endl;
+
+	const double _KT = 4.1419464e-21; // [J] 
+
+	for(auto const& nplus : {1e15, 1e16, 1e17, 1e18, 1e19, 1e20})
+	{
+		charge_eq.insert_Nplus(nplus);
+		ROOT_FINDING::newton_method(charge_eq, rootCharge);
+		std::cout<<"  --root(N+ :"<<nplus<<"): "<<rootCharge[0]*_KT<<"(J)"<<std::endl;
+		rootCharge[0] = initialPoint;
+	}
+
+	std::vector<double> nplusArr(multi_eq.size(), 0);
 	for(int i=0; i<nplusArr.size(); ++i) {
 		nplusArr[i] = (1e20 - 1e15)/(nplusArr.size() - 1.)*i + 1e15;
 	}
 
-	const double _KT = 4.1419464e-21; // [J] 
+	multi_eq.insert_Nplus(nplusArr);
+	
+	ROOT_FINDING::newton_method(multi_eq, rootMulti);
 
 	std::ofstream outFile("pi-Nplus.dat");
 
-	for(const auto& Nplus : nplusArr)
-	{
-		charge_eq.insert_Nplus(Nplus);
-		ROOT_FINDING::newton_method(charge_eq, root3);
-		outFile << Nplus << "\t" << root3[0]*_KT << std::endl;
-		root3[0] = 20;
+	for(int i=0; i<nplusArr.size(); ++i) {
+		outFile << nplusArr[i] << "\t" << rootMulti[i]*_KT << std::endl;
 	}
-	
+
+	outFile.close();
+
 	return 0;
 }
