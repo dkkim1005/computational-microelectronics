@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <assert.h>
-#include <numeric>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -22,6 +21,16 @@ namespace LINALG
                                	mat[j*N + i] = temp;
                        	}
                	}
+	}
+
+	template<class T>
+	T inner_product(const std::vector<T>& v1, const std::vector<T>& v2, const int& N)
+	{
+		T result = 0;
+		for(int i=0; i<N; ++i) {
+			result += v1[i]*v2[i];
+		}
+		return result;
 	}
 }
 
@@ -105,11 +114,11 @@ namespace ROOT_FINDING
 	protected:
 		const int _Ndim;
 
-		virtual double _residual(const double* root, const int i) const = 0 ;
+		virtual double _residual(const double* root, const int& i) const = 0 ;
 	};
 
 
-	bool newton_method(const objectBase& object, dvector& root, const double tol = 1e-7, const size_t niter = 100)
+	bool newton_method(const objectBase& object, dvector& root, const size_t niter = 100, const double tol = 1e-7)
 	{
 		assert(object.size() == root.size());
 
@@ -121,9 +130,9 @@ namespace ROOT_FINDING
 		{
 			object.residue(root, f);
 
-			double cost = std::sqrt(std::inner_product(f.begin(), f.end(), f.begin(), 0.));
+			double cost = std::sqrt(LINALG::inner_product(f, f, Ndim));
 
-			std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
+			//std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
 
 			if(cost < tol) 
 			{
@@ -147,43 +156,65 @@ namespace ROOT_FINDING
 }
 
 
-class derivedObject : public ROOT_FINDING::objectBase 
+class xsquare_m_1 : public ROOT_FINDING::objectBase  
 {
 public:
-	explicit derivedObject() : objectBase(2) {}
-
+	xsquare_m_1() :ROOT_FINDING::objectBase(1) {}
 private:
-	virtual double _residual(const double* root, const int i) const
-	{
-		double result = 0;
-		if(i == 0) {
-			result = std::pow(root[0] + root[1], 2) - 3*root[1] - 5;
-		}
-		else if(i == 1) {
-			result = root[0] - 2*root[1] - 4;
-		}
-		else {
-			assert(false);
-		}
-
-		return result;
+	virtual double _residual(const double* root, const int& i) const {
+		return std::pow(root[0], 2) - 1.;
 	}
 };
 
 
+class charge_neutrality : public ROOT_FINDING::objectBase
+{
+public:
+	explicit charge_neutrality()
+	: ROOT_FINDING::objectBase(1) {}
+
+	void insert_Nplus(const double& Nplus) {
+		_Nplus = Nplus;
+	}
+
+private:
+	virtual double _residual(const double* root, const int& i) const {
+		return (_ni*(std::exp(root[0]) - std::exp(-root[0]))/_Nplus) - 1.;
+	}
+
+	const double _ni = 1.5e10; // silicon carrier density at T = 300k (1e10)
+	double _Nplus = 0;
+};
+
 
 int main(int argc, char* argv[])
 {
-	derivedObject object;
-	std::vector<double> root = {1, 1};
+	xsquare_m_1 x_eq_object;
+	charge_neutrality charge_eq;
 
-	ROOT_FINDING::newton_method(object, root);
+	std::vector<double> rootp2 = {2.}, rootm2 = {-2}, root3 = {20};
 
-	for(auto const& r_i : root) {
-		std::cout<<r_i<<" ";
+	ROOT_FINDING::newton_method(x_eq_object, rootp2);
+	std::cout<<"  --root(starting: +2): "<<rootp2[0]<<std::endl;
+	ROOT_FINDING::newton_method(x_eq_object, rootm2);
+	std::cout<<"  --root(starting: -2): "<<rootm2[0]<<std::endl;
+
+	std::vector<double> nplusArr(100);
+	for(int i=0; i<nplusArr.size(); ++i) {
+		nplusArr[i] = (1e20 - 1e15)/(nplusArr.size() - 1.)*i + 1e15;
 	}
 
-	std::cout<<std::endl;
+	const double _KT = 4.1419464e-21; // [J] 
 
+	std::ofstream outFile("pi-Nplus.dat");
+
+	for(const auto& Nplus : nplusArr)
+	{
+		charge_eq.insert_Nplus(Nplus);
+		ROOT_FINDING::newton_method(charge_eq, root3);
+		outFile << Nplus << "\t" << root3[0]*_KT << std::endl;
+		root3[0] = 20;
+	}
+	
 	return 0;
 }
