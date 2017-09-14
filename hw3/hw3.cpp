@@ -106,7 +106,7 @@ namespace ROOT_FINDING
 	void objectBase::jacobian(const dvector& root, dvector& J) const
        	{
                 const double h = 5e-8;
-		dvector root_pdh(&root[0], &root[0] + _Ndim), root_mdh(&root[0], &root[0] + _Ndim);
+		dvector root_pdh(root), root_mdh(root);
 
        	        for(int i=0;i<_Ndim;++i)
 		{
