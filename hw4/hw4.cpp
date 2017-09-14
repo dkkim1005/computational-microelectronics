@@ -134,6 +134,8 @@ namespace ROOT_FINDING
 
 		void residue(const VectorObj& root, VectorObj& f) const;
 
+		virtual JacobianObj create_jacobian() const = 0;
+
 		virtual void jacobian(const VectorObj& root, JacobianObj& J) const = 0;
 
 		int size() const {
@@ -156,13 +158,14 @@ namespace ROOT_FINDING
 	
 
 
-	template<class EquationObj, class JacobianObj, class VectorObj, class SolverObj>
-	bool newton_method(const EquationObj& object, JacobianObj& J, VectorObj& root, const SolverObj& solver,
+	template<class JacobianObj, class VectorObj, class SolverObj>
+	bool newton_method(const objectBase<JacobianObj, VectorObj>& object, VectorObj& root, const SolverObj& solver,
 			   const size_t niter = 100, const double tol = 1e-7)
 	{
 		assert(object.size() == root.size());
 
 		const int Ndim = object.size();
+		JacobianObj&& J = object.create_jacobian();
 		VectorObj up(Ndim), f(Ndim);
 		bool isConverge = false;
 
@@ -202,6 +205,10 @@ class xsquare_m_1 : public ROOT_FINDING::objectBase<std::vector<double>, std::ve
 public:
 	xsquare_m_1() :ROOT_FINDING::objectBase<std::vector<double>, std::vector<double> >(1) {}
 
+	virtual std::vector<double> create_jacobian() const {
+		return std::vector<double>(_Ndim*_Ndim, 0);
+	}
+
         virtual void jacobian(const std::vector<double>& root, std::vector<double>& J) const
         {
                 const double h = 5e-8;
@@ -236,6 +243,10 @@ class sp_xsquare_m_1 : public ROOT_FINDING::objectBase<SPARSE_SOLVER::EIGEN::Spa
 public:
 	sp_xsquare_m_1() :ROOT_FINDING::objectBase<SPARSE_SOLVER::EIGEN::SparseDouble, SPARSE_SOLVER::EIGEN::nvector>(1) {}
 
+	virtual SPARSE_SOLVER::EIGEN::SparseDouble create_jacobian() const {
+		return SPARSE_SOLVER::EIGEN::SparseDouble(_Ndim, _Ndim);
+	}
+
         virtual void jacobian(const SPARSE_SOLVER::EIGEN::nvector& root, SPARSE_SOLVER::EIGEN::SparseDouble& J) const
         {
                 const double h = 5e-8;
@@ -258,22 +269,20 @@ private:
 
 int main(int argc, char* argv[])
 {
-	std::vector<double> x = {2}, J = {0};
+	std::vector<double> x = {2};
 	xsquare_m_1 object;
 
-	ROOT_FINDING::newton_method(object, J, x, DENSE_SOLVER::LAPACK::linear_solver);
+	ROOT_FINDING::newton_method(object, x, DENSE_SOLVER::LAPACK::linear_solver);
 
 	std::cout<<x[0]<<std::endl;
-
-	SPARSE_SOLVER::EIGEN::SparseDouble A(1, 1);
-	A.coeffRef(0, 0) = 3;
+	
 	SPARSE_SOLVER::EIGEN::nvector root(1);
 
 	root[0] = 1;
 
 	sp_xsquare_m_1 sp_object;
 
-	ROOT_FINDING::newton_method(sp_object, A, root, SPARSE_SOLVER::EIGEN::LU_solver);
+	ROOT_FINDING::newton_method(sp_object, root, SPARSE_SOLVER::EIGEN::LU_solver);
 
 	std::cout<<root<<std::endl;
 
