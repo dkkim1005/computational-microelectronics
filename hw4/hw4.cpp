@@ -181,7 +181,6 @@ namespace ROOT_FINDING
 				break;
 			}
 
-
 			up = f;
 			object.jacobian(root);
 			object.solve(up, solver);
@@ -199,15 +198,15 @@ namespace ROOT_FINDING
 
 using sparseMatrix = SPARSE_SOLVER::EIGEN::SparseDouble;
 using denseVector  = SPARSE_SOLVER::EIGEN::nvector;
-using sparseBase   = ROOT_FINDING::objectBase<denseVector>;
+using EigenBase   = ROOT_FINDING::objectBase<denseVector>;
 
 
-class sp_multi_charge_neutrality : public sparseBase
+class sp_multi_charge_neutrality : public EigenBase
 {
-	using sparseBase::_Ndim;
+	using EigenBase::_Ndim;
 public:
 	explicit sp_multi_charge_neutrality(const int Ndim)
-	: sparseBase(Ndim), _nplusArray(Ndim), _J(Ndim, Ndim) {}
+	: EigenBase(Ndim), _nplusArray(Ndim), _J(Ndim, Ndim) {}
 
 	virtual ~sp_multi_charge_neutrality() {}
 
