@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <functional>
 #include <cmath>
+#include <memory>
 
 
 namespace LINALG
@@ -125,7 +126,7 @@ namespace SPARSE_SOLVER
 
 namespace ROOT_FINDING
 {
-	template<class JacobianObj, class VectorObj>
+	template<class VectorObj>
 	class objectBase
 	{
 	public:
@@ -134,9 +135,7 @@ namespace ROOT_FINDING
 
 		void residue(const VectorObj& root, VectorObj& f) const;
 
-		virtual JacobianObj create_jacobian() const = 0;
-
-		virtual void jacobian(const VectorObj& root, JacobianObj& J) const = 0;
+		virtual void jacobian(const VectorObj& root) = 0;
 
 		int size() const {
 			return _Ndim;
@@ -148,8 +147,8 @@ namespace ROOT_FINDING
 		virtual double _residual(const VectorObj& root, const int& i) const = 0;
 	};
 
-	template<class JacobianObj, class VectorObj>
-	void objectBase<JacobianObj, VectorObj>::residue(const VectorObj& root, VectorObj& f) const
+	template<class VectorObj>
+	void objectBase<VectorObj>::residue(const VectorObj& root, VectorObj& f) const
 	{
 		for(int i=0; i<_Ndim; ++i) {
 			f[i] = _residual(root, i);
@@ -158,14 +157,13 @@ namespace ROOT_FINDING
 	
 
 
-	template<class JacobianObj, class VectorObj, class SolverObj>
-	bool newton_method(const objectBase<JacobianObj, VectorObj>& object, VectorObj& root, const SolverObj& solver,
+	template<class EquationObj, class VectorObj, class SolverObj>
+	bool newton_method(EquationObj& object, VectorObj& root, const SolverObj& solver,
 			   const size_t niter = 100, const double tol = 1e-7)
 	{
 		assert(object.size() == root.size());
 
 		const int Ndim = object.size();
-		JacobianObj&& J = object.create_jacobian();
 		VectorObj up(Ndim), f(Ndim);
 		bool isConverge = false;
 
@@ -175,7 +173,7 @@ namespace ROOT_FINDING
 
 			double cost = std::sqrt(LINALG::inner_product(f, f, Ndim));
 
-			//std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
+			std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
 
 			if(cost < tol) 
 			{
@@ -183,11 +181,10 @@ namespace ROOT_FINDING
 				break;
 			}
 
-			object.jacobian(root, J);
 
 			up = f;
-
-			solver(J, up);
+			object.jacobian(root);
+			object.solve(up, solver);
 
 			for(int i=0; i<Ndim; ++i) {
 				root[i] -= up[i];
@@ -199,92 +196,83 @@ namespace ROOT_FINDING
 }
 
 
-class xsquare_m_1 : public ROOT_FINDING::objectBase<std::vector<double>, std::vector<double> >  
+
+using sparseMatrix = SPARSE_SOLVER::EIGEN::SparseDouble;
+using denseVector  = SPARSE_SOLVER::EIGEN::nvector;
+using sparseBase   = ROOT_FINDING::objectBase<denseVector>;
+
+
+class sp_multi_charge_neutrality : public sparseBase
 {
-	using ROOT_FINDING::objectBase<std::vector<double>, std::vector<double> >::_Ndim;
+	using sparseBase::_Ndim;
 public:
-	xsquare_m_1() :ROOT_FINDING::objectBase<std::vector<double>, std::vector<double> >(1) {}
+	explicit sp_multi_charge_neutrality(const int Ndim)
+	: sparseBase(Ndim), _nplusArray(Ndim), _J(Ndim, Ndim) {}
 
-	virtual std::vector<double> create_jacobian() const {
-		return std::vector<double>(_Ndim*_Ndim, 0);
-	}
+	virtual ~sp_multi_charge_neutrality() {}
 
-        virtual void jacobian(const std::vector<double>& root, std::vector<double>& J) const
+        virtual void jacobian(const denseVector& root)
         {
-                const double h = 5e-8;
-                std::vector<double> root_pdh(root), root_mdh(root);
+                constexpr double h = 5e-8;
+                denseVector root_pdh(root), root_mdh(root);
 
-                for(int i=0;i<_Ndim;++i)
-                {
-                        for(int j=0;j<_Ndim;++j)
-                        {
-                                root_pdh[j] += h;
-                                root_mdh[j] -= h;
+		for(int i=0; i<_Ndim; ++i)
+		{
+                	root_pdh[i] += h;
+                	root_mdh[i] -= h;
 
-                                J[i*_Ndim + j] = (_residual(root_pdh, i) - _residual(root_mdh, i))/(2.*h);
+                	_J.coeffRef(i, i) = (_residual(root_pdh, i) - _residual(root_mdh, i))/(2.*h);
 
-                                root_pdh[j] -= h;
-                                root_mdh[j] += h;
-                        }
-                }
+                	root_pdh[i] -= h;
+                	root_mdh[i] += h;
+		}
+
+		_J.makeCompressed();
         }
 
-private:
-	virtual double _residual(const std::vector<double>& root, const int& i) const {
-		return std::pow(root[0], 2) - 3.;
-	}
-};
-
-
-
-class sp_xsquare_m_1 : public ROOT_FINDING::objectBase<SPARSE_SOLVER::EIGEN::SparseDouble, SPARSE_SOLVER::EIGEN::nvector>  
-{
-	using ROOT_FINDING::objectBase<SPARSE_SOLVER::EIGEN::SparseDouble, SPARSE_SOLVER::EIGEN::nvector>::_Ndim;
-public:
-	sp_xsquare_m_1() :ROOT_FINDING::objectBase<SPARSE_SOLVER::EIGEN::SparseDouble, SPARSE_SOLVER::EIGEN::nvector>(1) {}
-
-	virtual SPARSE_SOLVER::EIGEN::SparseDouble create_jacobian() const {
-		return SPARSE_SOLVER::EIGEN::SparseDouble(_Ndim, _Ndim);
+	void insert_Nplus(const std::vector<double>& nplusArray) {
+		_nplusArray = nplusArray;
 	}
 
-        virtual void jacobian(const SPARSE_SOLVER::EIGEN::nvector& root, SPARSE_SOLVER::EIGEN::SparseDouble& J) const
-        {
-                const double h = 5e-8;
-		const int i = 0;
-                SPARSE_SOLVER::EIGEN::nvector root_pdh(root), root_mdh(root);
-
-                root_pdh[i] += h;
-                root_mdh[i] -= h;
-
-                J.coeffRef(0, 0) = (_residual(root_pdh, i) - _residual(root_mdh, i))/(2.*h);
-        }
+	template<class SolverObj>
+	void solve(denseVector& v, const SolverObj& solver) const {
+		solver(_J, v);
+	}
 
 private:
-	virtual double _residual(const SPARSE_SOLVER::EIGEN::nvector& root, const int& i) const {
-		return std::pow(root[0], 2) - 3.;
-	}
-};
 
+	virtual double _residual(const denseVector& root, const int& i) const {
+		return _ni*(std::exp(root[i]) - std::exp(-root[i]))/_nplusArray[i] - 1.;
+	}
+
+	const double _ni = 1.5e10; // silicon carrier density at T = 300k (1e10)
+	std::vector<double> _nplusArray;
+	sparseMatrix _J;
+};
 
 
 int main(int argc, char* argv[])
 {
-	std::vector<double> x = {2};
-	xsquare_m_1 object;
+	const int Ndim = 1000;
+	const double KbT = 300*8.617343e-5;
+	std::vector<double> nplusArray(Ndim, 1*1e15);
+	for(int i=0; i<nplusArray.size()/2; ++i) {
+		nplusArray[i] *= -1;
+	}
 
-	ROOT_FINDING::newton_method(object, x, DENSE_SOLVER::LAPACK::linear_solver);
+	std::shared_ptr<sp_multi_charge_neutrality> ptrObject(new sp_multi_charge_neutrality(Ndim));
+	denseVector roots(Ndim);
 
-	std::cout<<x[0]<<std::endl;
-	
-	SPARSE_SOLVER::EIGEN::nvector root(1);
+	ptrObject->insert_Nplus(nplusArray);
 
-	root[0] = 1;
+	for(int i=0; i<Ndim; ++i) {
+		roots[i] = 50.;
+	}
 
-	sp_xsquare_m_1 sp_object;
+	ROOT_FINDING::newton_method(*ptrObject, roots, SPARSE_SOLVER::EIGEN::LU_solver, 1000);
 
-	ROOT_FINDING::newton_method(sp_object, root, SPARSE_SOLVER::EIGEN::LU_solver);
-
-	std::cout<<root<<std::endl;
+	std::cout<<KbT*roots[0]<<"(ev)"<<std::endl;
+	std::cout<<KbT*roots[Ndim-1]<<"(ev)"<<std::endl;
 
 	return 0;
 }
