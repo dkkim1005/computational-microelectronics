@@ -361,7 +361,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-	const int Ndim = 100000;
+	const int Ndim = 1000;
 	const double KbT = 0.025851984732130292; //(ev)
 
 	/* dopping density: 1e16 [cm^-3]
@@ -406,7 +406,7 @@ int main(int argc, char* argv[])
 
 	ROOT_FINDING::newton_method(poissonEq, phi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 100, 1e-6);
 
-	std::ofstream wfile("x-pi.dat");
+	std::ofstream wfile("x-phi.dat");
 	wfile << x[0] << "\t" << phi0[0]*KbT << "\n";
 	for(int i=0; i<Ndim; ++i) {
 		wfile << x[i+1] << "\t" << phi[i]*KbT << "\n";
