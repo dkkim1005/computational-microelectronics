@@ -408,8 +408,7 @@ int main(int argc, char* argv[])
 
 	std::ofstream wfile("x-pi.dat");
 	wfile << x[0] << "\t" << phi0[0]*KbT << "\n";
-	for(int i=0; i<Ndim; ++i) 
-	{
+	for(int i=0; i<Ndim; ++i) {
 		wfile << x[i+1] << "\t" << phi[i]*KbT << "\n";
 	}
 	wfile << x[Ndim+1] << "\t" << phi0[1]*KbT << "\n";
@@ -427,8 +426,7 @@ int main(int argc, char* argv[])
 
 	wfile.open("x-hole.dat");
 	wfile << x[0] << "\t" << holeDensity(phi0[0]) << "\n";
-	for(int i=0; i<Ndim; ++i) 
-	{
+	for(int i=0; i<Ndim; ++i) {
 		wfile << x[i+1] << "\t" << holeDensity(phi[i]) << "\n";
 	}
 	wfile << x[Ndim+1] << "\t" << holeDensity(phi0[1]) << "\n";
@@ -436,8 +434,7 @@ int main(int argc, char* argv[])
 
 	wfile.open("x-elec.dat");
 	wfile << x[0] << "\t" << elecDensity(phi0[0]) << "\n";
-	for(int i=0; i<Ndim; ++i) 
-	{
+	for(int i=0; i<Ndim; ++i) {
 		wfile << x[i+1] << "\t" << elecDensity(phi[i]) << "\n";
 	}
 	wfile << x[Ndim+1] << "\t" << elecDensity(phi0[1]) << "\n";
