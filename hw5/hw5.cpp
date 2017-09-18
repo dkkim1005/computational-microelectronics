@@ -359,7 +359,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Ndim = 10000;
+	constexpr int Ndim = 1001;
 	constexpr double Tsi = 5.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5*1e10; // [cm^-3]

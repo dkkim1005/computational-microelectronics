@@ -11,14 +11,15 @@ n_i = 1.5e16
 print "a0:", ev*phis/KbT
 
 
-E = np.sqrt(2*eps*KbT*Nam)*( (np.exp(ev*phis/KbT) - ev*phis/KbT - 1) +\
-                (n_i/Nam)**2*(np.exp(-ev*phis/KbT) + ev*phis/KbT - 1))**(1./2.)/eps
+E = np.sqrt(2*eps*KbT*Nam)*np.sqrt( (np.exp(-ev*phis/KbT) + ev*phis/KbT - 1) +\
+                (n_i/Nam)**2*(np.exp(ev*phis/KbT) - ev*phis/KbT - 1))/eps
 
 print E, "[N/C]"
 
 rdata = np.loadtxt("x-phi-0.3.dat")
 dx = (rdata[1, 0] - rdata[0, 0])*1e-4 # [m]
-dphi = -(rdata[1, 1] - rdata[1, 0]) # W=q*V [ev] (=> V = W/q [ev/C] = W/q * |q| [J/C] = W)
+dphi = -(rdata[1, 1] - rdata[1, 0])
+# W=q*V [ev] (=> V = W/q [ev/C] = W/q * |q| [J/C] = W)
 
 E1 = -dphi/dx
 
