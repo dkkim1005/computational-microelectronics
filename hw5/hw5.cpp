@@ -360,10 +360,10 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Ndim = 10001;
+	constexpr int Ndim = 50001;
 	constexpr double Tsi = 1.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
-	constexpr double n_i = 1.5*1e10; // [cm^-3]
+	constexpr double n_i = 1.5e10; // [cm^-3]
 	constexpr double KbT_J = 300*1.3806488e-23; //(J)
 	constexpr double q0 = 1.6021766208e-19; // (C)
 
@@ -422,7 +422,7 @@ int main(int argc, char* argv[])
 
 	rfile.close();
 
-	ROOT_FINDING::newton_method(poissonEq, psi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 1000);
+	ROOT_FINDING::newton_method(poissonEq, psi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 1000, 1e-6);
 
 	std::ofstream wfile(("x-qphi-" + std::string(argv[1]) + ".dat").c_str());
 	wfile << scale*x[0] << "\t" << std::setprecision(15) << psi0[0]*KbT_J/q0 << "\n";
