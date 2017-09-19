@@ -183,18 +183,18 @@ public:
 
 	virtual ~chargeNeutrality() {}
 
-        virtual void jacobian(const dvector& root)
+        virtual void jacobian(const dvector& psi)
         {
                 constexpr double h = 5e-8;
-                dvector root_pdh(root), root_mdh(root);
+                dvector psi_pdh(psi), psi_mdh(psi);
 
-                root_pdh[0] += h;
-                root_mdh[0] -= h;
+                psi_pdh[0] += h;
+                psi_mdh[0] -= h;
 
-                _J[0] = (_residual(root_pdh, 0) - _residual(root_mdh, 0))/(2.*h);
+                _J[0] = (_residual(psi_pdh, 0) - _residual(psi_mdh, 0))/(2.*h);
 
-                root_pdh[0] -= h;
-                root_mdh[0] += h;
+                psi_pdh[0] -= h;
+                psi_mdh[0] += h;
 		
         }
 
@@ -208,8 +208,8 @@ public:
 
 private:
 
-	virtual double _residual(const dvector& root, const int& i) const {
-		return (std::exp(root[i]) - std::exp(-root[i]))/_dopping[i] - 1.;
+	virtual double _residual(const dvector& psi, const int& i) const {
+		return (std::exp(psi[i]) - std::exp(-psi[i]))/_dopping[i] - 1.;
 	}
 
 	std::vector<double> _dopping; // ratio: N+/n_i where N+ is dopping density
@@ -227,7 +227,7 @@ public:
 	PoissonEquation(const int Ndim, const dvector& dopping,
 			const dvector& x, const dvector& boundaries, const double scale = 1.0)
 	: ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>(Ndim),
-	 _J(Ndim, Ndim), _dopping(dopping), _x(x), _phi0(boundaries), _scale(scale)
+	 _J(Ndim, Ndim), _dopping(dopping), _x(x), _psi0(boundaries), _scale(scale)
 	{
 		assert(_Ndim == _dopping.size());
 		assert(_Ndim + 2 == _x.size());
@@ -235,14 +235,14 @@ public:
 
 	virtual ~PoissonEquation() {}
 
-	virtual void jacobian(const denseVector& phi);
+	virtual void jacobian(const denseVector& psi);
 
 	virtual sparseMatrix& get_J() {
 		return _J;
 	}
 
 private:
-	virtual double _residual(const denseVector& phi, const int& i) const;
+	virtual double _residual(const denseVector& psi, const int& i) const;
 
 	sparseMatrix _J;
 	/*
@@ -256,14 +256,15 @@ private:
 	const double _scale;	      // [x] = _scale[micrometer]
 	std::vector<double> _dopping; // ratio: N+/n_i where N+ is dopping density
 	std::vector<double> _x;       // [micrometer]
-	std::vector<double> _phi0;    // boundary conditions at _x[0] and _x[_Ndim-1]
+	// psi := q*phi/KbT
+	std::vector<double> _psi0;    // boundary conditions at _x[0] and _x[_Ndim-1]
 	const PermittivityObj _epsf;  // relative permittivity
 	bool _isUpdated = false;
 };
 
 
 template<class PermittivityObj>
-void PoissonEquation<PermittivityObj>::jacobian(const denseVector& phi)
+void PoissonEquation<PermittivityObj>::jacobian(const denseVector& psi)
 {
 	for(int i=0; i<_Ndim; ++i)
 	{
@@ -272,7 +273,7 @@ void PoissonEquation<PermittivityObj>::jacobian(const denseVector& phi)
 		_J.coeffRef(i, i) = _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) +
 				    _epsf((x_i+x_im1)/2.)/(x_i-x_im1) +
 				    std::pow(_scale, 2)*_coeff*((x_ip1+x_i)/2. - (x_i+x_im1)/2.)*
-				    (std::exp(phi[i]) + std::exp(-phi[i]));
+				    (std::exp(psi[i]) + std::exp(-psi[i]));
 		
 	}
 
@@ -291,7 +292,7 @@ void PoissonEquation<PermittivityObj>::jacobian(const denseVector& phi)
 }
 
 template<class PermittivityObj>
-double PoissonEquation<PermittivityObj>::_residual(const denseVector& phi, const int& i) const
+double PoissonEquation<PermittivityObj>::_residual(const denseVector& psi, const int& i) const
 {
 	/*
 		x0	phi0
@@ -313,31 +314,31 @@ double PoissonEquation<PermittivityObj>::_residual(const denseVector& phi, const
 		 qn_i*(exp(phi_i/Vth) - exp(-phi_i/Vth) - N_i)*(x_{i}- x_{i-1}) = 0
 	*/
 
-	double result, phi_ip1, phi_i, phi_im1;
+	double result, psi_ip1, psi_i, psi_im1;
 	const double &x_ip1 = _x[i+2], &x_i = _x[i+1], &x_im1 = _x[i];
 
 	if(i == 0)
 	{
-		phi_ip1 = phi[1];
-		phi_i   = phi[0];
-		phi_im1 = _phi0[0]; // boundary condition
+		psi_ip1 = psi[1];
+		psi_i   = psi[0];
+		psi_im1 = _psi0[0]; // boundary condition
 	}
 	else if(i == _Ndim-1)
 	{
-		phi_ip1 = _phi0[1]; // boundary condition
-		phi_i   = phi[_Ndim-1];
-		phi_im1 = phi[_Ndim-2];
+		psi_ip1 = _psi0[1]; // boundary condition
+		psi_i   = psi[_Ndim-1];
+		psi_im1 = psi[_Ndim-2];
 	}
 	else
 	{
-		phi_ip1 = phi[i+1];
-		phi_i   = phi[i];
-		phi_im1 = phi[i-1];
+		psi_ip1 = psi[i+1];
+		psi_i   = psi[i];
+		psi_im1 = psi[i-1];
 	}
 
-	result = -_epsf((x_ip1+x_i)/2.)*(phi_ip1 - phi_i)/(x_ip1-x_i) +
-		  _epsf((x_i+x_im1)/2.)*(phi_i - phi_im1)/(x_i-x_im1) +
-	 	  std::pow(_scale, 2)*_coeff*((std::exp(phi_i) - std::exp(-phi_i)) - _dopping[i])*(x_i - x_im1);
+	result = -_epsf((x_ip1+x_i)/2.)*(psi_ip1 - psi_i)/(x_ip1-x_i) +
+		  _epsf((x_i+x_im1)/2.)*(psi_i - psi_im1)/(x_i-x_im1) +
+	 	  std::pow(_scale, 2)*_coeff*((std::exp(psi_i) - std::exp(-psi_i)) - _dopping[i])*(x_i - x_im1);
 
 	return result;
 }
@@ -359,31 +360,33 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Ndim = 1001;
-	constexpr double Tsi = 5.; // [scale * micrometer]
+	constexpr int Ndim = 10001;
+	constexpr double Tsi = 1.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5*1e10; // [cm^-3]
+	constexpr double KbT_J = 300*1.3806488e-23; //(J)
+	constexpr double q0 = 1.6021766208e-19; // (C)
 
 	if(argc == 1)
 	{
 		std::cout<<"  -- options \n"
-			 <<"       argv[1]: phi_{s}\n"
+			 <<"       argv[1]: q*phi_{s} [ev]\n"
 			 <<"       argv[2]: scale ([x] = scale*[micrometer])\n"
 			 <<"       argv[3]: file to read initial phi (optional)\n";
 		return -1;
 	}
 
-	const double phis = std::atof(argv[1]);
+	const double psis = std::atof(argv[1])/KbT;
 	const double scale = std::atof(argv[2]);
 
 	chargeNeutrality neutral;
 	dvector dopping(Ndim, -1e5/1.5);
 	neutral.insert_dopping({dopping[0]});
 
-	dvector phic(1,-20);
+	dvector psic(1,-20);
 
-	ROOT_FINDING::newton_method(neutral, phic, [](const dvector& A, dvector& x){x[0] /= A[0];});
-	dvector phi0 = {phis/KbT, phic[0]};
+	ROOT_FINDING::newton_method(neutral, psic, [](const dvector& A, dvector& x){x[0] /= A[0];});
+	dvector psi0 = {psis, psic[0]};
 
 	dvector x(Ndim+2, 0);
 
@@ -391,8 +394,8 @@ int main(int argc, char* argv[])
 		x[i] = Tsi/(Ndim + 1)*i;
 	}
 
-	PoissonEquation<permittivityForSilicon> poissonEq(Ndim, dopping, x, phi0, scale);
-	denseVector phi(Ndim);
+	PoissonEquation<permittivityForSilicon> poissonEq(Ndim, dopping, x, psi0, scale);
+	denseVector psi(Ndim);
 
 	std::ifstream rfile(argv[3]);
 
@@ -404,55 +407,54 @@ int main(int argc, char* argv[])
 		for(int i=0; i<Ndim; ++i) 
 		{
 			rfile >> temp;   // read x
-			rfile >> phi[i]; // read phi
-			phi[i] /= KbT;
+			rfile >> psi[i]; // read phi [J/C]
+			psi[i] *= q0/KbT_J;
 		}
 	}
 	else
 	{
-		std::cout << "  --default initial phi: linear line for x(phi(x) = ax + b)"
+		std::cout << "  --default initial psi: linear line for x(psi(x) = ax + b)"
 			  << std::endl;
 		for(int i=0; i<Ndim; ++i) {
-			phi[i] = (phi0[1] - phi0[0])/(Ndim+1)*(i+1);
+			psi[i] = (psi0[1] - psi0[0])/(Ndim+1)*(i+1);
 		}
 	}
 
 	rfile.close();
 
+	ROOT_FINDING::newton_method(poissonEq, psi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 1000);
 
-	ROOT_FINDING::newton_method(poissonEq, phi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 1000);
-
-	std::ofstream wfile(("x-phi-" + std::string(argv[1]) + ".dat").c_str());
-	wfile << scale*x[0] << "\t" << std::setprecision(15) << phi0[0]*KbT << "\n";
+	std::ofstream wfile(("x-qphi-" + std::string(argv[1]) + ".dat").c_str());
+	wfile << scale*x[0] << "\t" << std::setprecision(15) << psi0[0]*KbT_J/q0 << "\n";
 	for(int i=0; i<Ndim; ++i) {
-		wfile << scale*x[i+1] << "\t" << phi[i]*KbT << "\n";
+		wfile << scale*x[i+1] << "\t" << psi[i]*KbT_J/q0 << "\n";
 	}
-	wfile << scale*x[Ndim+1] << "\t" << phi0[1]*KbT << "\n";
+	wfile << scale*x[Ndim+1] << "\t" << psi0[1]*KbT_J/q0 << "\n";
 	wfile.close();
 
-	auto holeDensity = [&n_i](const double phi) -> double {
-					return n_i*std::exp(-phi);
+	auto holeDensity = [&n_i](const double psi) -> double {
+					return n_i*std::exp(-psi);
 				};
 
-	auto elecDensity = [&n_i](const double phi) -> double {
-					return n_i*std::exp(phi);
+	auto elecDensity = [&n_i](const double psi) -> double {
+					return n_i*std::exp(psi);
 				};
 
 
 	wfile.open("x-hole-" + std::string(argv[1]) + ".dat");
-	wfile << scale*x[0] << "\t" << holeDensity(phi0[0]) << "\n";
+	wfile << scale*x[0] << "\t" << holeDensity(psi0[0]) << "\n";
 	for(int i=0; i<Ndim; ++i) {
-		wfile << scale*x[i+1] << "\t" << holeDensity(phi[i]) << "\n";
+		wfile << scale*x[i+1] << "\t" << holeDensity(psi[i]) << "\n";
 	}
-	wfile << scale*x[Ndim+1] << "\t" << holeDensity(phi0[1]) << "\n";
+	wfile << scale*x[Ndim+1] << "\t" << holeDensity(psi0[1]) << "\n";
 	wfile.close();
 
 	wfile.open("x-elec-" + std::string(argv[1]) + ".dat");
-	wfile << scale*x[0] << "\t" << elecDensity(phi0[0]) << "\n";
+	wfile << scale*x[0] << "\t" << elecDensity(psi0[0]) << "\n";
 	for(int i=0; i<Ndim; ++i) {
-		wfile << scale*x[i+1] << "\t" << elecDensity(phi[i]) << "\n";
+		wfile << scale*x[i+1] << "\t" << elecDensity(psi[i]) << "\n";
 	}
-	wfile << scale*x[Ndim+1] << "\t" << elecDensity(phi0[1]) << "\n";
+	wfile << scale*x[Ndim+1] << "\t" << elecDensity(psi0[1]) << "\n";
 	wfile.close();
 
 	return 0;

@@ -1,30 +1,29 @@
 #!/usr/bin/python2.7
+import sys
 import numpy as np
+import os
 
 eps = 11.68*8.854187817e-12 # silicon permittivity [C^2/(J*m)]
 KbT = 300*1.3806488e-23 # boltzmann constant [J/K] * room temperature(300K)
+KbT_ev = 0.025851984732130292
+q0 = 1.6021766208e-19
 Nam = 1e15*1e6 # [# m^-3]
-ev = 1.6021766208e-19
-phis = 0.3 # [ev]
 n_i = 1.5e16
 
-print "a0:", ev*phis/KbT
+E = lambda phis : np.sqrt(2*eps*KbT*Nam)*\
+                  np.sqrt( (np.exp(-q0*phis/KbT_ev) + q0*phis/KbT_ev - 1) +\
+                  (n_i/Nam)**2*(np.exp(q0*phis/KbT_ev) - q0*phis/KbT_ev - 1))/eps
 
+qphis = np.linspace(0.001, 1., 50)
+data = np.zeros([len(qphis), 3], dtype = 'float64')
 
-E = np.sqrt(2*eps*KbT*Nam)*np.sqrt( (np.exp(-ev*phis/KbT) + ev*phis/KbT - 1) +\
-                (n_i/Nam)**2*(np.exp(ev*phis/KbT) - ev*phis/KbT - 1))/eps
+for i, qphi in enumerate(qphis):
+    data[i, 0] = qphi/q0 # phi [J/C]
+    data[i, 1] = E(qphi/q0) # E[N/C]
 
-print E, "[N/C]"
+    cmd = './chw5 %s 1'%(str(qphi))
+    os.system(cmd)
+    rdata = np.loadtxt("x-qphi-%s.dat"%str(qphi))
+    data[i, 2] = -(rdata[1, 1] - rdata[0, 1])/((rdata[1, 0] - rdata[0, 0])*1e-6)
 
-rdata = np.loadtxt("x-phi-0.3.dat")
-dx = (rdata[1, 0] - rdata[0, 0])*1e-4 # [m]
-dphi = -(rdata[1, 1] - rdata[1, 0])
-# W=q*V [ev] (=> V = W/q [ev/C] = W/q * |q| [J/C] = W)
-
-E1 = -dphi/dx
-
-print E1, "[N/C]"
-
-print "ratio:",E/E1
-
-print ev**2*n_i/(eps/11.68*KbT)/(1e12)
+np.savetxt('E-field.dat', data)
