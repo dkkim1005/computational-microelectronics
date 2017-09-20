@@ -14,12 +14,12 @@ E = lambda phis : np.sqrt(2*eps*KbT*Nam)*\
                   np.sqrt( (np.exp(-q0*phis/KbT_ev) + q0*phis/KbT_ev - 1) +\
                   (n_i/Nam)**2*(np.exp(q0*phis/KbT_ev) - q0*phis/KbT_ev - 1))/eps
 
-qphis = np.linspace(0.1, 1.0, 50)
+qphis = np.linspace(0.1, 0.5, 50)
 data = np.zeros([len(qphis), 3], dtype = 'float64')
 
 for i, qphi in enumerate(qphis):
     data[i, 0] = qphi # phi [J/C]
-    data[i, 1] = E(qphi/q0) # E[N/C]
+    data[i, 1] = E((qphi-(-0.28715))/q0) # E[N/C]
 
     cmd = './chw5 %s 1'%(str(qphi))
     os.system(cmd)

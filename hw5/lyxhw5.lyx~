@@ -185,6 +185,57 @@ number density for the electron and hole concentration
 
 \end_layout
 
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename eigen_solver/Figure_1.pdf
+	scale 30
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The wave function for the electron in the semiconductor
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsection*
 case2
 \end_layout
@@ -298,7 +349,162 @@ number density for the electron and hole concentration
 
 \end_layout
 
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
 \begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename eigen_solver/Figure_2.pdf
+	scale 30
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The wave function for the electron in the semiconductor
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case3.
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Analytic results: 
+\begin_inset Formula $\vec{E_{s}}=\sqrt{\frac{2K_{b}TN_{a}^{-}}{\epsilon_{\mathrm{silicon}}}}\left\{ \left(e^{-\frac{q_{0}\phi_{s}}{K_{b}T}}+\frac{q_{0}\phi_{s}}{K_{b}T}-1\right)+\left(\frac{n_{i}}{N_{a}^{-}}\right)^{2}\left(e^{\frac{q_{0}\phi_{s}}{K_{b}T}}-\frac{q_{0}\phi_{s}}{K_{b}T}-1\right)\right\} ^{\frac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Numerical results: 
+\begin_inset Formula $-\nabla\phi|_{x}\simeq-\frac{\phi_{2}-\phi_{1}}{x_{2}-x_{1}}$
+\end_inset
+
+, where 
+\begin_inset Formula $\phi_{1}=\phi_{s}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename e-field/Figure_1.pdf
+	scale 30
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename e-field/Figure_2.pdf
+	scale 30
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Comparison between the analytic solution and numerical results
+\end_layout
+
+\end_inset
+
 
 \end_layout
 

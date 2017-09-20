@@ -289,6 +289,8 @@ void PoissonEquation<PermittivityObj>::jacobian(const denseVector& psi)
 		}
 		_isUpdated = true;
 	}
+
+	_J.makeCompressed();
 }
 
 template<class PermittivityObj>
@@ -360,8 +362,8 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Ndim = 50001;
-	constexpr double Tsi = 1.; // [scale * micrometer]
+	constexpr int Ndim = 20001;
+	constexpr double Tsi = 5.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
 	constexpr double KbT_J = 300*1.3806488e-23; //(J)
@@ -386,6 +388,9 @@ int main(int argc, char* argv[])
 	dvector psic(1,-20);
 
 	ROOT_FINDING::newton_method(neutral, psic, [](const dvector& A, dvector& x){x[0] /= A[0];});
+
+	std::cout<<"q*phic = "<<psic[0]*KbT<<" [ev]"<<std::endl;
+
 	dvector psi0 = {psis, psic[0]};
 
 	dvector x(Ndim+2, 0);
