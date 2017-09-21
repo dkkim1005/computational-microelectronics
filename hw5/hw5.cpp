@@ -362,8 +362,8 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Ndim = 20001;
-	constexpr double Tsi = 5.; // [scale * micrometer]
+	constexpr int Ndim = 999;
+	constexpr double Tsi = 1.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
 	constexpr double KbT_J = 300*1.3806488e-23; //(J)
@@ -430,11 +430,11 @@ int main(int argc, char* argv[])
 	ROOT_FINDING::newton_method(poissonEq, psi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 1000, 1e-6);
 
 	std::ofstream wfile(("x-qphi-" + std::string(argv[1]) + ".dat").c_str());
-	wfile << scale*x[0] << "\t" << std::setprecision(15) << psi0[0]*KbT_J/q0 << "\n";
+	wfile << x[0] << "\t" << std::setprecision(15) << psi0[0]*KbT << "\n";
 	for(int i=0; i<Ndim; ++i) {
-		wfile << scale*x[i+1] << "\t" << psi[i]*KbT_J/q0 << "\n";
+		wfile << x[i+1] << "\t" << psi[i]*KbT << "\n";
 	}
-	wfile << scale*x[Ndim+1] << "\t" << psi0[1]*KbT_J/q0 << "\n";
+	wfile << x[Ndim+1] << "\t" << psi0[1]*KbT << "\n";
 	wfile.close();
 
 	auto holeDensity = [&n_i](const double psi) -> double {
@@ -447,19 +447,19 @@ int main(int argc, char* argv[])
 
 
 	wfile.open("x-hole-" + std::string(argv[1]) + ".dat");
-	wfile << scale*x[0] << "\t" << holeDensity(psi0[0]) << "\n";
+	wfile << x[0] << "\t" << holeDensity(psi0[0]) << "\n";
 	for(int i=0; i<Ndim; ++i) {
-		wfile << scale*x[i+1] << "\t" << holeDensity(psi[i]) << "\n";
+		wfile << x[i+1] << "\t" << holeDensity(psi[i]) << "\n";
 	}
-	wfile << scale*x[Ndim+1] << "\t" << holeDensity(psi0[1]) << "\n";
+	wfile << x[Ndim+1] << "\t" << holeDensity(psi0[1]) << "\n";
 	wfile.close();
 
 	wfile.open("x-elec-" + std::string(argv[1]) + ".dat");
-	wfile << scale*x[0] << "\t" << elecDensity(psi0[0]) << "\n";
+	wfile << x[0] << "\t" << elecDensity(psi0[0]) << "\n";
 	for(int i=0; i<Ndim; ++i) {
-		wfile << scale*x[i+1] << "\t" << elecDensity(psi[i]) << "\n";
+		wfile << x[i+1] << "\t" << elecDensity(psi[i]) << "\n";
 	}
-	wfile << scale*x[Ndim+1] << "\t" << elecDensity(psi0[1]) << "\n";
+	wfile << x[Ndim+1] << "\t" << elecDensity(psi0[1]) << "\n";
 	wfile.close();
 
 	return 0;

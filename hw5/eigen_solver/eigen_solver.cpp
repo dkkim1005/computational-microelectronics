@@ -4,62 +4,9 @@
 #include <assert.h>
 #include <fstream>
 #include <cstdlib>
+#include "sparse_solver.h"
 
-// compile : g++ -o filename hw1.cpp -std=c++14 -lopenblas -llapack
-
-#define MAX(a, b) (a>b ? a : b)
-#define MIN(a, b) (a>b ? b : a)
-
-namespace LAPACK_SOLVER
-{
-
-	using dvector = std::vector<double>;
-
-	extern "C" 
-	{
-		void dsyev_(const char* JOBZ, const char* UPLO, const int* N, double* A,
-		const int* LDA, double* W, double* WORK, const int* LWORK, int* INFO);
-	}
-
-
-	template<class T>
-	void transpose(std::vector<T>& mat) 
-	{
-		const int N = std::sqrt(mat.size());
-		for(int i=0; i<N; ++i)
-		{
-			for(int j=i+1; j<N; ++j) 
-			{
-				T temp = mat[i*N + j];
-				mat[i*N + j] = mat[j*N + i];
-				mat[j*N + i] = temp;
-			}
-		}
-	}
-
-
-	void diag(dvector& A, dvector& lambda)
-	{
-		assert(A.size() == std::pow(lambda.size(), 2));
-		const char JOBZ = 'V';
-		const char UPLO = 'U';
-		const int N = lambda.size();
-		const int LDA = MAX(1, N);
-		dvector WORK(1);
-		int LWORK = -1;
-		int INFO = 0;
-
-		dsyev_(&JOBZ, &UPLO, &N, &A[0], &N, &lambda[0], &WORK[0], &LWORK, &INFO);
-
-		LWORK = MAX(1, WORK[0]);
-		dvector(LWORK, 0).swap(WORK);
-
-		dsyev_(&JOBZ, &UPLO, &N, &A[0], &N, &lambda[0], &WORK[0], &LWORK, &INFO);
-
-		transpose(A);
-	}
-}
-
+// compile : g++ -o filename hw1.cpp -std=c++11 -I/usr/local/include/eigen3 -I/home/alice/Work/spectra/spectra-0.5.0/include
 
 namespace NUMERIC_CALCULUS 
 {
@@ -84,46 +31,93 @@ namespace NUMERIC_CALCULUS
 } 
 
 
-void set_sign_eigen(std::vector<double>& A, const double sign = 1.)
+class EigenSolver
 {
-	const int N = std::sqrt(A.size());
-	for(int j=0; j<N; ++j)
+using dvector = std::vector<double>;
+using SparseDoubleInt = Eigen::SparseMatrix<double, Eigen::ColMajor, int>;
+
+public:
+	EigenSolver(const dvector& x, const double scale, const double meffRatio)
+	: _x(x), _Ndim(x.size()), _scale(scale), _coeff(3.8099815e-8),
+	  _H(x.size()-2, x.size()-2)
 	{
-		if(A[j]*sign < 0) 
+		const double dx = (_x[_Ndim - 1] - _x[0])/(_Ndim - 1.);
+
+		for(int i=0; i<_Ndim-2; ++i) {
+			_H.coeffRef(i, i) = -_coeff*(-2.)/(meffRatio*std::pow(_scale*dx, 2));
+		}
+
+		for(int i=0; i<_Ndim-3; ++i) {
+			_H.coeffRef(i, i+1) = -_coeff*(1.)/(meffRatio*std::pow(_scale*dx, 2));
+			_H.coeffRef(i+1, i) = -_coeff*(1.)/(meffRatio*std::pow(_scale*dx, 2));
+		}
+
+		_H.makeCompressed();
+	}
+
+	void insert_V(const dvector& V)
+	{
+		for(int i=0; i<_Ndim-2; ++i) {
+			_H.coeffRef(i, i) += V[i];
+		}
+	}
+
+	void compute(Eigen::VectorXd& energy, Eigen::MatrixXd& psi,
+		     const int nev, const int ncv) const
+	{
+		EIGEN_SOLVER::EIGEN::SPECTRA::SymEigsSolver eigenSolver;
+		// Solve eigen problem
+		eigenSolver(_H, energy, psi, nev, ncv, true);
+		// normalization
+		_set_norm(psi, nev);
+		// check sign of wave function
+		_set_sign(psi, nev);
+	}
+
+private:
+
+	void _set_norm(Eigen::MatrixXd& psi, const int& nev) const
+	{
+		const double dx = (_x[_Ndim-1] - _x[0])/(_Ndim - 1.);
+
+		std::vector<double> psiSquare(_Ndim, 0);
+
+		for(int j=0; j<nev; ++j) 
 		{
-			for(int i=0; i<N; ++i) {
-				A[N*i + j] *= -1;
+			for(int i=1; i<_Ndim-1; ++i) {
+				psiSquare[i] = std::pow(psi(i-1, j), 2);
+			}
+
+			double norm = NUMERIC_CALCULUS::simpson_integration(&psiSquare[0], _Ndim, dx);
+
+			for(int i=1; i<_Ndim-1; ++i) {
+				psi(i-1, j) /= std::sqrt(norm);
+			}
+		}	
+	}	
+
+	void _set_sign(Eigen::MatrixXd& psi, const int& nev, const double sign = 1.) const
+	{
+		for(int j=0; j<nev; ++j)
+		{
+			if(psi(0, j)*sign < 0) 
+			{
+				for(int i=0; i<_Ndim-2; ++i) {
+					psi(i, j) *= -1;
+				}
 			}
 		}
 	}
-}
+
+	const int _Ndim;
+	const double _scale;
+	const double _coeff;
+	const dvector _x;
+
+	SparseDoubleInt _H;
+};
 
 
-void set_norm(std::vector<double>& A, const double a)
-{
-	const int N = std::sqrt(A.size()) + 2;
-	const double dx = a/(N-1.);
-	std::vector<double> x(N);
-
-	for(int i=0; i<N; ++i) {
-		x[i] = i*dx;
-	}
-
-	std::vector<double> psiSquare(N, 0);
-
-	for(int j=0; j<N-2; ++j) 
-	{
-		for(int i=1; i<N-1; ++i) {
-			psiSquare[i] = std::pow(A[(N-2)*(i-1)+ j], 2);
-		}
-
-		double norm = NUMERIC_CALCULUS::simpson_integration(&psiSquare[0], N, dx);
-
-		for(int i=1; i<N-1; ++i) {
-			A[(N-2)*(i-1)+ j] /= std::sqrt(norm);
-		}
-	}
-}
 
 
 int main(int argc, char* argv[])
@@ -131,14 +125,14 @@ int main(int argc, char* argv[])
 	if(argc == 1)
 	{
 		std::cout<<"  -- options \n"
-			 <<"       argv[1]: N\n"
-			 <<"       argv[2]: filename to read data for x and phi(x)\n"
-			 <<"       argv[3]: filename to write a wave function\n";
+			 <<"       argv[1]: scale ([x] = scale*[micrometer])\n"
+			 <<"       argv[2]: filename to read data for x and phi(x)\n";
 		return -1;
 	}
 
 	// The number of width for discritization.
-	const int N = std::atoi(argv[1]), Ncut = 100;
+	const int N = 1001, nev = 10;
+	const double scale = std::atof(argv[1]);
 	assert(N%2 == 1);
 	std::vector<double> x(N, 0); // [micrometer]
 	std::vector<double> V(N-2, 0);
@@ -152,72 +146,59 @@ int main(int argc, char* argv[])
 		for(int i=0; i<N-2; ++i)
 		{
 			rfile >> x[i+1];
-			rfile >> V[i];
+			rfile >> V[i]; // q*phi(x)
 		}
 		rfile >> x[N-1];
+
+		rfile.close();
 	}
 	else {
 		std::cout<<"  --there is no file to read: "<<std::string(argv[2])<<std::endl;
 		std::abort();
 	}
 
-	rfile.close();
 
 	// open a file object to record numeric solutions.
-	std::ofstream outFile(argv[3]);
+	std::ofstream outFile(("wave-" + std::string(argv[2])).c_str());
 	assert(outFile.is_open());
-	constexpr double ev = 1.6021766208e-19;
-	const double HBAR = 6.62607004e-34/(2*M_PI),
-			M = 9.10938356e-31,
-			a = x[N-1] - x[0];
-	const double da = a/(N - 1.);
-	const double coeff = -std::pow(HBAR, 2)/
-			    (2.*M*std::pow(da, 2)*ev*1e-12); // [ev * m^-2]
 
-	std::cout<<"coeff: "<<coeff<<std::endl;
+	EigenSolver infWallSolver(x, scale, 1.);
 
-	std::vector<double> A(std::pow(N-2, 2), 0), lambda(N-2);
+	Eigen::MatrixXd psi;
+	Eigen::VectorXd energy;
 
-	for(int i=0; i<N-2; ++i) {
-		A[i*(N-2) + i] = -2.*coeff - V[i]; // V[i]: q*phi --> -q*phi (electron has negative charge!)
+	for(auto & V_i : V) {
+		V_i *= -1;
 	}
 
-	// LAPACK_SOLVER::diag solver only needs an upper matrix component.
-	for(int i=0; i<N-3; ++i) {
-		A[(i+1)*(N-2) + i] = 1.*coeff;
-	}
+	infWallSolver.insert_V(V);
 
-	LAPACK_SOLVER::diag(A, lambda);
-
-	set_sign_eigen(A);
-
-	// nomalizaing the wave functions
-	set_norm(A, a);
-
+	infWallSolver.compute(energy, psi, nev, N/10);
 
 	// record numeric solution from the ground state to the N'th excited state.
 	outFile << x[0] << " ";
-	for(int i=0; i<MIN(N, Ncut)-2; ++i) {
+	for(int i=0; i<nev; ++i) {
 		outFile << 0. << " ";
 	}
 	outFile<<std::endl;
 
-
 	for(int i=1; i<N-1; ++i)
 	{
 		outFile << x[i] << " ";
-		for(int j=0; j<MIN(N, Ncut)-2; ++j) {
-			outFile << A[(N-2)*(i-1) + j] << " ";
+		for(int j=0; j<nev; ++j) {
+			outFile << psi(i-1, j) << " ";
 		}
 		outFile<<std::endl;
 	}
 
 	outFile << x[N - 1] << " ";
-	for(int i=0; i<MIN(N, Ncut)-2; ++i) {
+	for(int i=0; i<nev; ++i) {
 		outFile << 0. << " ";
 	}
 
 	outFile.close();
-	
+
+	std::cout<<"  --energy [ev]\n"<<energy;
+		
 	return 0;
 }
