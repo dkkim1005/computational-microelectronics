@@ -339,11 +339,23 @@ case3.
 \end_inset
 
 
+\begin_inset Newline newline
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
 Analytic results: 
-\begin_inset Formula $\vec{E_{s}}|_{x}=\sqrt{\frac{2K_{b}TN_{a}^{-}}{\epsilon_{\mathrm{silicon}}}}\left\{ \left(e^{-\frac{q_{0}\phi_{s}}{K_{b}T}}+\frac{q_{0}\phi_{s}}{K_{b}T}-1\right)+\left(\frac{n_{i}}{N_{a}^{-}}\right)^{2}\left(e^{\frac{q_{0}\phi_{s}}{K_{b}T}}-\frac{q_{0}\phi_{s}}{K_{b}T}-1\right)\right\} ^{\frac{1}{2}}$
+\begin_inset Formula $\vec{E_{s}}|_{x}=\sqrt{\frac{2K_{b}TN_{a}^{-}}{\epsilon_{\mathrm{silicon}}}}\left\{ \left(e^{-\frac{q_{0}\phi_{d}}{K_{b}T}}+\frac{q_{0}\phi_{d}}{K_{b}T}-1\right)+\left(\frac{n_{i}}{N_{a}^{-}}\right)^{2}\left(e^{\frac{q_{0}\phi_{d}}{K_{b}T}}-\frac{q_{0}(\phi_{s}-\phi_{d})}{K_{b}T}-1\right)\right\} ^{\frac{1}{2}}$
+\end_inset
+
+
+\begin_inset Formula $(\phi_{d}=\phi_{s}-\phi_{N})$
+\end_inset
+
+
+\begin_inset Newline newline
 \end_inset
 
 
