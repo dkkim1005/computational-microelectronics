@@ -31,13 +31,13 @@ namespace NUMERIC_CALCULUS
 } 
 
 
-class EigenSolver
+class SparseEigenSolver
 {
 using dvector = std::vector<double>;
 using SparseDoubleInt = Eigen::SparseMatrix<double, Eigen::ColMajor, int>;
 
 public:
-	EigenSolver(const dvector& x, const double scale, const double meffRatio)
+	SparseEigenSolver(const dvector& x, const double scale, const double meffRatio)
 	: _x(x), _Ndim(x.size()), _scale(scale), _coeff(3.8099815e-8),
 	  _H(x.size()-2, x.size()-2)
 	{
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
 	}
 
 	// The number of width for discritization.
-	const int N = 1001, nev = 10;
+	const int N = 1001, nev = 5;
 	const double scale = std::atof(argv[1]);
 	assert(N%2 == 1);
 	std::vector<double> x(N, 0); // [micrometer]
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
 	std::ofstream outFile(("wave-" + std::string(argv[2])).c_str());
 	assert(outFile.is_open());
 
-	EigenSolver infWallSolver(x, scale, 1.);
+	SparseEigenSolver infWallSolver(x, scale, 1.);
 
 	Eigen::MatrixXd psi;
 	Eigen::VectorXd energy;
