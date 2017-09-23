@@ -362,7 +362,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Ndim = 999;
+	constexpr int Nx = 1001;
 	constexpr double Tsi = 1.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
@@ -382,7 +382,7 @@ int main(int argc, char* argv[])
 	const double scale = std::atof(argv[2]);
 
 	chargeNeutrality neutral;
-	dvector dopping(Ndim, -1e5/1.5);
+	dvector dopping(Nx-2, -1e5/1.5);
 	neutral.insert_dopping({dopping[0]});
 
 	dvector psic(1,-20);
@@ -393,14 +393,14 @@ int main(int argc, char* argv[])
 
 	dvector psi0 = {psis, psic[0]};
 
-	dvector x(Ndim+2, 0);
+	dvector x(Nx, 0);
 
-	for(int i=0; i<Ndim+2; ++i) {
-		x[i] = Tsi/(Ndim + 1)*i;
+	for(int i=0; i<Nx; ++i) {
+		x[i] = Tsi/(Nx - 1)*i;
 	}
 
-	PoissonEquation<permittivityForSilicon> poissonEq(Ndim, dopping, x, psi0, scale);
-	denseVector psi(Ndim);
+	PoissonEquation<permittivityForSilicon> poissonEq(Nx-2, dopping, x, psi0, scale);
+	denseVector psi(Nx-2);
 
 	std::ifstream rfile(argv[3]);
 
@@ -409,7 +409,7 @@ int main(int argc, char* argv[])
 		std::cout<<"  --file: "<<std::string(argv[3])<<std::endl;
 		double temp;
 		rfile >> temp; rfile >> temp; // read x0 and phi0
-		for(int i=0; i<Ndim; ++i) 
+		for(int i=0; i<Nx-2; ++i) 
 		{
 			rfile >> temp;   // read x
 			rfile >> psi[i]; // read phi [J/C]
@@ -420,8 +420,8 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "  --default initial psi: linear line for x(psi(x) = ax + b)"
 			  << std::endl;
-		for(int i=0; i<Ndim; ++i) {
-			psi[i] = (psi0[1] - psi0[0])/(Ndim+1)*(i+1);
+		for(int i=0; i<Nx-2; ++i) {
+			psi[i] = (psi0[1] - psi0[0])/(Nx - 1)*(i+1);
 		}
 	}
 
@@ -431,10 +431,10 @@ int main(int argc, char* argv[])
 
 	std::ofstream wfile(("x-qphi-" + std::string(argv[1]) + ".dat").c_str());
 	wfile << x[0] << "\t" << std::setprecision(15) << psi0[0]*KbT << "\n";
-	for(int i=0; i<Ndim; ++i) {
+	for(int i=0; i<Nx-2; ++i) {
 		wfile << x[i+1] << "\t" << psi[i]*KbT << "\n";
 	}
-	wfile << x[Ndim+1] << "\t" << psi0[1]*KbT << "\n";
+	wfile << x[Nx-1] << "\t" << psi0[1]*KbT << "\n";
 	wfile.close();
 
 	auto holeDensity = [&n_i](const double psi) -> double {
@@ -448,18 +448,18 @@ int main(int argc, char* argv[])
 
 	wfile.open("x-hole-" + std::string(argv[1]) + ".dat");
 	wfile << x[0] << "\t" << holeDensity(psi0[0]) << "\n";
-	for(int i=0; i<Ndim; ++i) {
+	for(int i=0; i<Nx-2; ++i) {
 		wfile << x[i+1] << "\t" << holeDensity(psi[i]) << "\n";
 	}
-	wfile << x[Ndim+1] << "\t" << holeDensity(psi0[1]) << "\n";
+	wfile << x[Nx-1] << "\t" << holeDensity(psi0[1]) << "\n";
 	wfile.close();
 
 	wfile.open("x-elec-" + std::string(argv[1]) + ".dat");
 	wfile << x[0] << "\t" << elecDensity(psi0[0]) << "\n";
-	for(int i=0; i<Ndim; ++i) {
+	for(int i=0; i<Nx-2; ++i) {
 		wfile << x[i+1] << "\t" << elecDensity(psi[i]) << "\n";
 	}
-	wfile << x[Ndim+1] << "\t" << elecDensity(psi0[1]) << "\n";
+	wfile << x[Nx-1] << "\t" << elecDensity(psi0[1]) << "\n";
 	wfile.close();
 
 	return 0;

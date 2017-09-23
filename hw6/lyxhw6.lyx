@@ -1,0 +1,388 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Homework #6
+\end_layout
+
+\begin_layout Author
+Dongkyu Kim(20162050)
+\end_layout
+
+\begin_layout Section*
+Benchmark with results for the general Poisson equation
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Analytic results: 
+\begin_inset Formula $\vec{E_{s}}|_{x}=\sqrt{\frac{2K_{b}TN_{a}^{-}}{\epsilon_{\mathrm{silicon}}}}\left\{ \left(e^{-\frac{q_{0}\phi_{d}}{K_{b}T}}+\frac{q_{0}\phi_{d}}{K_{b}T}-1\right)+\left(\frac{n_{i}}{N_{a}^{-}}\right)^{2}\left(e^{\frac{q_{0}\phi_{d}}{K_{b}T}}-\frac{q_{0}\phi_{d}}{K_{b}T}-1\right)\right\} ^{\frac{1}{2}}$
+\end_inset
+
+where 
+\begin_inset Formula $\phi_{d}=\phi_{s}-\phi_{N}$
+\end_inset
+
+, 
+\begin_inset Formula $\phi_{s}$
+\end_inset
+
+ is the external potential at the oxide surface and 
+\begin_inset Formula $\phi_{N}$
+\end_inset
+
+ is the potential at the silicon juction with satisfying the charge neutrality
+ condition.
+\begin_inset Newline newline
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Numerical results: 
+\begin_inset Formula $-\nabla\phi|_{x}\simeq-\frac{\phi_{2}-\phi_{1}}{x_{2}-x_{1}}$
+\end_inset
+
+, where 
+\begin_inset Formula $\phi_{1}=\phi_{s}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename e-field/Figure_1.pdf
+	scale 40
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Comparison between the analytic results and numerical results for the general
+ Poisson equation in the metal oxide silicon(MOS) structure
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Results for the Eigensolver embedded with the potential 
+\begin_inset Formula $\phi(x)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+case1.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $T_{\mathrm{si}}=1\mu m$
+\end_inset
+
+, 
+\begin_inset Formula $\phi_{s}=10^{-2}\mathrm{ev}$
+\end_inset
+
+, 
+\begin_inset Formula $\phi_{N}=-0.287\mathrm{ev}$
+\end_inset
+
+, 
+\begin_inset Formula $N_{a}^{-}=10^{15}\mathrm{cm}^{-3}$
+\end_inset
+
+, 
+\begin_inset Formula $\Delta x=10^{-3}\mu m$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename Figure_1.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The wave funtions and the given potential 
+\begin_inset Formula $V(x)$
+\end_inset
+
+ where 
+\begin_inset Formula $V(x)=-q\phi(x)+E_{c}-E_{i}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+case2.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $T_{\mathrm{si}}=1\mu m$
+\end_inset
+
+, 
+\begin_inset Formula $\phi_{s}=-0.28\mathrm{ev}$
+\end_inset
+
+, 
+\begin_inset Formula $\phi_{N}=-0.287\mathrm{ev}$
+\end_inset
+
+, 
+\begin_inset Formula $N_{a}^{-}=10^{15}\mathrm{cm}^{-3}$
+\end_inset
+
+, 
+\begin_inset Formula $\Delta x=10^{-3}\mu m$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename Figure_2.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+The wave funtions and the given potential 
+\begin_inset Formula $V(x)$
+\end_inset
+
+ where 
+\begin_inset Formula $V(x)=-q\phi(x)+E_{c}-E_{i}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
