@@ -38,16 +38,16 @@ using SparseDoubleInt = Eigen::SparseMatrix<double, Eigen::ColMajor, int>;
 
 public:
 	EigenSolver(const dvector& x, const double scale, const double meffRatio)
-	: _x(x), _Ndim(x.size()), _scale(scale), _coeff(3.8099815e-8),
+	: _x(x), _Nx(x.size()), _scale(scale), _coeff(3.8099815e-8),
 	  _H(x.size()-2, x.size()-2)
 	{
-		const double dx = (_x[_Ndim - 1] - _x[0])/(_Ndim - 1.);
+		const double dx = (_x[_Nx - 1] - _x[0])/(_Nx - 1.);
 
-		for(int i=0; i<_Ndim-2; ++i) {
+		for(int i=0; i<_Nx-2; ++i) {
 			_H.coeffRef(i, i) = -_coeff*(-2.)/(meffRatio*std::pow(_scale*dx, 2));
 		}
 
-		for(int i=0; i<_Ndim-3; ++i) {
+		for(int i=0; i<_Nx-3; ++i) {
 			_H.coeffRef(i, i+1) = -_coeff*(1.)/(meffRatio*std::pow(_scale*dx, 2));
 			_H.coeffRef(i+1, i) = -_coeff*(1.)/(meffRatio*std::pow(_scale*dx, 2));
 		}
@@ -57,7 +57,7 @@ public:
 
 	void insert_V(const dvector& V)
 	{
-		for(int i=0; i<_Ndim-2; ++i) {
+		for(int i=0; i<_Nx-2; ++i) {
 			_H.coeffRef(i, i) += V[i];
 		}
 	}
@@ -78,19 +78,19 @@ private:
 
 	void _set_norm(Eigen::MatrixXd& psi, const int& nev) const
 	{
-		const double dx = (_x[_Ndim-1] - _x[0])/(_Ndim - 1.);
+		const double dx = (_x[_Nx-1] - _x[0])/(_Nx - 1.);
 
-		std::vector<double> psiSquare(_Ndim, 0);
+		std::vector<double> psiSquare(_Nx, 0);
 
 		for(int j=0; j<nev; ++j) 
 		{
-			for(int i=1; i<_Ndim-1; ++i) {
+			for(int i=1; i<_Nx-1; ++i) {
 				psiSquare[i] = std::pow(psi(i-1, j), 2);
 			}
 
-			double norm = NUMERIC_CALCULUS::simpson_integration(&psiSquare[0], _Ndim, dx);
+			double norm = NUMERIC_CALCULUS::simpson_integration(&psiSquare[0], _Nx, dx);
 
-			for(int i=1; i<_Ndim-1; ++i) {
+			for(int i=1; i<_Nx-1; ++i) {
 				psi(i-1, j) /= std::sqrt(norm);
 			}
 		}	
@@ -102,21 +102,20 @@ private:
 		{
 			if(psi(0, j)*sign < 0) 
 			{
-				for(int i=0; i<_Ndim-2; ++i) {
+				for(int i=0; i<_Nx-2; ++i) {
 					psi(i, j) *= -1;
 				}
 			}
 		}
 	}
 
-	const int _Ndim;
+	const int _Nx;
 	const double _scale;
 	const double _coeff;
 	const dvector _x;
 
 	SparseDoubleInt _H;
 };
-
 
 
 
@@ -131,11 +130,12 @@ int main(int argc, char* argv[])
 	}
 
 	// The number of width for discritization.
-	const int N = 1001, nev = 10;
+	constexpr double EcmEi = 0.56; // E_{c} - E_{i} = (E_{c} - E_{v})/2.
+	constexpr int Nx = 1001, nev = 60;
 	const double scale = std::atof(argv[1]);
-	assert(N%2 == 1);
-	std::vector<double> x(N, 0); // [micrometer]
-	std::vector<double> V(N-2, 0);
+	assert(Nx%2 == 1);
+	std::vector<double> x(Nx, 0); // [micrometer]
+	std::vector<double> V(Nx-2, 0);
 
 	std::ifstream rfile(argv[2]);
 	if(rfile.is_open())
@@ -143,12 +143,13 @@ int main(int argc, char* argv[])
 		std::cout<<"  --file: "<<std::string(argv[2])<<std::endl;
 		double temp;
 		rfile >> x[0]; rfile >> temp;
-		for(int i=0; i<N-2; ++i)
+		for(int i=0; i<Nx-2; ++i)
 		{
 			rfile >> x[i+1];
 			rfile >> V[i]; // q*phi(x)
+			V[i] = -V[i] + EcmEi; // V(x) = -q*phi(x) + E_{c} - E_{i}
 		}
-		rfile >> x[N-1];
+		rfile >> x[Nx-1];
 
 		rfile.close();
 	}
@@ -156,7 +157,6 @@ int main(int argc, char* argv[])
 		std::cout<<"  --there is no file to read: "<<std::string(argv[2])<<std::endl;
 		std::abort();
 	}
-
 
 	// open a file object to record numeric solutions.
 	std::ofstream outFile(("wave-" + std::string(argv[2])).c_str());
@@ -167,13 +167,9 @@ int main(int argc, char* argv[])
 	Eigen::MatrixXd psi;
 	Eigen::VectorXd energy;
 
-	for(auto & V_i : V) {
-		V_i *= -1;
-	}
-
 	infWallSolver.insert_V(V);
 
-	infWallSolver.compute(energy, psi, nev, N/10);
+	infWallSolver.compute(energy, psi, nev, Nx/10);
 
 	// record numeric solution from the ground state to the N'th excited state.
 	outFile << x[0] << " ";
@@ -182,23 +178,23 @@ int main(int argc, char* argv[])
 	}
 	outFile<<std::endl;
 
-	for(int i=1; i<N-1; ++i)
+	for(int i=1; i<Nx-1; ++i)
 	{
 		outFile << x[i] << " ";
 		for(int j=0; j<nev; ++j) {
-			outFile << psi(i-1, j) << " ";
+			outFile << std::pow(psi(i-1, j), 2) << " ";
 		}
 		outFile<<std::endl;
 	}
 
-	outFile << x[N - 1] << " ";
+	outFile << x[Nx - 1] << " ";
 	for(int i=0; i<nev; ++i) {
 		outFile << 0. << " ";
 	}
 
 	outFile.close();
 
-	std::cout<<"  --energy [ev]\n"<<energy;
+	std::cout<<"  --energy [ev]\n"<<energy<<std::endl;;
 		
 	return 0;
 }
