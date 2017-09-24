@@ -37,7 +37,7 @@ using dvector = std::vector<double>;
 using SparseDoubleInt = Eigen::SparseMatrix<double, Eigen::ColMajor, int>;
 
 public:
-	EigenSolver(const dvector& x, const double scale, const double meffRatio)
+	SparseEigenSolver(const dvector& x, const double scale, const double meffRatio)
 	: _x(x), _Nx(x.size()), _scale(scale), _coeff(3.8099815e-8),
 	  _H(x.size()-2, x.size()-2)
 	{
