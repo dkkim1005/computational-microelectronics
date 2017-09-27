@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <vector>
 #include <functional>
+#include <fstream>
 
 
 namespace NUMERIC_CALCULUS
@@ -138,26 +139,52 @@ namespace NUMERIC_CALCULUS
 }
 
 
-int main(int argc, char* argv[])
+
+class FermiDiracDist
 {
-	const int N = 5001;
+public:
+	FermiDiracDist(const double myyR, const double mzzR, const double Esub)
+	: _myyR(myyR), _mzzR(mzzR), _Esub(Esub) {}
+
+	// ky : [1/nm^2],  kz : [1/nm^2]
+	double operator()(const double& ky, const double& kz) const {
+		return 1./(std::exp((_Esub + _coeff*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT) + 1.);
+	}
+
+private:
+	const double _myyR; // fraction for the electron mass (yy direction)
+	const double _mzzR; // fraction for the electron mass (zz direction)
+	const double _Esub; // [ev]
+	static constexpr double _KbT   = 0.0258520;    // [ev]
+	static constexpr double _coeff = 3.8099815e-2; // hbar^2/(2*m0) [ev*nm^2]
+};
+
+
+
+void kpoint_summation()
+{
+	const int N = 2001;
+	NUMERIC_CALCULUS::simpson_2d_method solver(N);
+
+	FermiDiracDist dist(0.19, 0.19, 0.56);
 
 	std::vector<double> x(N, 0), y(N, 0);
 
 	for(int i=0; i<N; ++i)
 	{
-		x[i] = i*1./(N - 1.);
-		y[i] = 2*i*1./(N - 1.) - 1;
+		x[i] = i*5./(N-1) - 2.5;
+		y[i] = i*5./(N-1) - 2.5;
 	}
 
-	auto func1 = [](const double& x, const double& y) -> double {
-				return std::sin(x*x);
-			};
+	const double integral = solver(dist, x, y);
 
-	NUMERIC_CALCULUS::simpson_2d_method solver(N);
+	std::cout << "integral : " << integral << std::endl;
+}
 
-	double result = solver(func1, x, y);
-	std::cout << "result: " << result << std::endl;
+
+int main(int argc, char* argv[])
+{
+	kpoint_summation();
 
 	return 0;
 }
