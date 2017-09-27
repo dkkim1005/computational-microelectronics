@@ -146,12 +146,12 @@ int main(int argc, char* argv[])
 
 	for(int i=0; i<N; ++i)
 	{
-		x[i] = i*1./(N - 1.);
+		x[i] = i*1./(N - 1.)*M_PI;
 		y[i] = 2*i*1./(N - 1.) - 1;
 	}
 
 	auto func1 = [](const double& x, const double& y) -> double {
-				return std::sin(x*x);
+				return std::sin(x);
 			};
 
 	NUMERIC_CALCULUS::simpson_2d_method solver(N);
