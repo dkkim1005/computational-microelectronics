@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
 
 	// The number of width for discritization.
 	constexpr double EcmEi = 0.56; // E_{c} - E_{i} = (E_{c} - E_{v})/2.
-	constexpr int Nx = 50001, nev = 60;
+	constexpr int Nx = 1001, nev = 300;
 	const double scale = std::atof(argv[1]);
 	assert(Nx%2 == 1);
 	std::vector<double> x(Nx, 0); // [micrometer]
@@ -162,14 +162,14 @@ int main(int argc, char* argv[])
 	std::ofstream outFile(("wave-" + std::string(argv[2])).c_str());
 	assert(outFile.is_open());
 
-	SparseEigenSolver infWallSolver(x, scale, 1.);
+	SparseEigenSolver infWallSolver(x, scale, 0.91);
 
 	Eigen::MatrixXd psi;
 	Eigen::VectorXd energy;
 
 	infWallSolver.insert_V(V);
 
-	infWallSolver.compute(energy, psi, nev, Nx/10);
+	infWallSolver.compute(energy, psi, nev, Nx/2);
 
 	// record numeric solution from the ground state to the N'th excited state.
 	outFile << x[0] << " ";
@@ -195,6 +195,4 @@ int main(int argc, char* argv[])
 	outFile.close();
 
 	std::cout<<"  --energy [ev]\n"<<energy<<std::endl;;
-		
-	return 0;
 }

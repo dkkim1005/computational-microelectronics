@@ -140,51 +140,106 @@ namespace NUMERIC_CALCULUS
 
 
 
-class FermiDiracDist
+namespace SCHRODINGER_POISSON
+{
+class Number_density
 {
 public:
-	FermiDiracDist(const double myyR, const double mzzR, const double Esub)
-	: _myyR(myyR), _mzzR(mzzR), _Esub(Esub) {}
+	
+	explicit Number_density(const int N, const double Width)
+	: _N(N), _Width(Width), _integral(N)
+	{}
 
-	// ky : [1/nm^2],  kz : [1/nm^2]
-	double operator()(const double& ky, const double& kz) const {
-		return 1./(std::exp((_Esub + _coeff*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT) + 1.);
+
+	double avg_density(const std::vector<double>& Esub0p91, const std::vector<double>& Esub0p19) const
+	{
+		const double nsub1 = _n_sub_band(Esub0p91, 0.19, 0.19);
+		const double nsub2 = _n_sub_band(Esub0p19, 0.91, 0.19);
+		const double result = (2*nsub1 + 4*nsub2)*1e4; // [cm^-3]
+
+		return result;
 	}
 
 private:
-	const double _myyR; // fraction for the electron mass (yy direction)
-	const double _mzzR; // fraction for the electron mass (zz direction)
-	const double _Esub; // [ev]
-	static constexpr double _KbT   = 0.0258520;    // [ev]
-	static constexpr double _coeff = 3.8099815e-2; // hbar^2/(2*m0) [ev*nm^2]
+
+	class _FermiDiracDist
+	{
+	public:
+		_FermiDiracDist(const double myyR, const double mzzR, const double Esub)
+		: _myyR(myyR), _mzzR(mzzR), _Esub(Esub) {}
+
+		// ky : [1/nm^2],  kz : [1/nm^2]
+		double operator()(const double& ky, const double& kz) const {
+			return 1./(std::exp((_Esub + _coeff*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT) + 1.);
+		}
+
+	private:
+		const double _myyR; // fraction for the electron mass (yy direction)
+		const double _mzzR; // fraction for the electron mass (zz direction)
+		const double _Esub; // [ev]
+		static constexpr double _KbT   = 0.0258520;    // [ev]
+		static constexpr double _coeff = 3.8099815e-2; // hbar^2/(2*m0) [ev*nm^2]
+	};
+
+
+	double _n_sub_band(const std::vector<double>& Esub, const double myyR, const double mzzR) const
+	{
+		std::vector<double> k(_N, 0);
+
+		double density = 0;
+
+		for(int i=0; i<_N; ++i) {
+			k[i] = i*_Width/(_N - 1.) - _Width/2.;
+		}
+
+		for(auto const& E : Esub)
+		{
+			_FermiDiracDist dist(myyR, mzzR, E);
+			density += 2.*_integral(dist, k, k)/std::pow(2*M_PI, 2)*std::pow(1e7, 2); // [cm^-2]
+		}
+
+		return density;
+	}
+
+	const int _N; // discritizing for k points
+	const double _Width; // Width of an integration range : [-_Width/2 ~ _Width/2]
+	NUMERIC_CALCULUS::simpson_2d_method _integral; // functor to integrate out for a given fermi-dirac dist.
 };
 
 
+}
 
-void kpoint_summation()
+void read_file(const char filename[], std::vector<double>& E)
 {
-	const int N = 2001;
-	NUMERIC_CALCULUS::simpson_2d_method solver(N);
+	std::vector<double>().swap(E);
 
-	FermiDiracDist dist(0.19, 0.19, 0.56);
+	std::ifstream infile(filename);
 
-	std::vector<double> x(N, 0), y(N, 0);
-
-	for(int i=0; i<N; ++i)
+	while(true)
 	{
-		x[i] = i*5./(N-1) - 2.5;
-		y[i] = i*5./(N-1) - 2.5;
+		double temp;
+		infile >> temp;
+		if(infile.eof()) {
+			break;
+		}
+		E.push_back(temp);
 	}
 
-	const double integral = solver(dist, x, y);
-
-	std::cout << "integral : " << integral << std::endl;
+	infile.close();
 }
 
 
 int main(int argc, char* argv[])
 {
-	kpoint_summation();
+	std::vector<double> Esub0p91, Esub0p19;
+	read_file("eig_0p91.dat", Esub0p91);
+	read_file("eig_0p19.dat", Esub0p19);
+
+	SCHRODINGER_POISSON::Number_density number(401, 4.);
+
+	double result = number.avg_density(Esub0p91, Esub0p19);
+
+	std::cout << "tot:" << result << std::endl;
 
 	return 0;
 }
