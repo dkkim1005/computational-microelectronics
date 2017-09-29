@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <vector>
+#include <list>
 #include <functional>
 #include <fstream>
 #include <Eigen/Core>
@@ -13,14 +14,14 @@
 namespace SCHRODINGER_POISSON
 {
 
-	class Number_density
+	class Si_Number_density
 	{
 
 	using dvector = std::vector<double>;
 
 	public:
 	
-		Number_density(const int N, const double Width)
+		Si_Number_density(const int N, const double Width)
 		: _N(N), _Width(Width), _integral(N)
 		{}
 
@@ -34,7 +35,7 @@ namespace SCHRODINGER_POISSON
 
 			if(nsub1.size() != nsub2.size())
 			{
-				std::cout << "  !Error : SCHRODINGER_POISSON::Number_density::_n_sub_band\n"
+				std::cout << "  !Error : SCHRODINGER_POISSON::Si_Number_density::density\n"
 					  << "  nsub1.size() != nsub2.size()\n";
 				std::abort();
 			}
@@ -73,36 +74,26 @@ namespace SCHRODINGER_POISSON
 
 
 		// Psi [micrometer^(-1/2)]
-		dvector _n_sub_band(const Eigen::VectorXd& Esub, const Eigen::MatrixXd& Psi, const double myyR, const double mzzR) const
+		dvector _n_sub_band(const Eigen::VectorXd& Esub, const Eigen::MatrixXd& Psi,
+				    const double myyR, const double mzzR) const
 		{
-			try
-			{
-				if(Esub.size() != Psi.cols()) {
-					throw "  :Error!:  SCHRODINGER_POISSON::Number_density::_n_sub_band\n   Esub.size() != Psi.cols()";
-				}
-			}
-			catch(const char errmsg[])
-			{
-				std::cout << errmsg << std::endl;
-				std::abort();
-			}
+			assert(Esub.size() == Psi.cols());
 
 			dvector k(_N, 0);
-
-			const int Nev = Esub.size();
-			const int Npoints = Psi.rows();
+			const int Npoints = Psi.rows() + 2, nev = Esub.size();
 			dvector nx(Npoints, 0);
+			nx[0] = 0; nx[Npoints-1] = 0;
 
 			for(int i=0; i<_N; ++i) {
 				k[i] = i*_Width/(_N - 1.) - _Width/2.;
 			}
 
-			for(int i=0; i<Nev; ++i)
+			for(int j=0; j<nev; ++j)
 			{
-				_FermiDiracDist dist(myyR, mzzR, Esub(i));
+				_FermiDiracDist dist(myyR, mzzR, Esub(j));
 				double density = 2.*_integral(dist, k, k)/std::pow(2*M_PI, 2)*std::pow(1e7, 2); // [cm^-2]
-				for(int j=0; j<Npoints; ++j) {
-					nx[j] += density*std::pow(Psi(j, i), 2)*1e4; // [cm^-3]
+				for(int i=1; i<Npoints-1; ++i) {
+					nx[i] += density*std::pow(Psi(i-1, j), 2)*1e4; // [cm^-3]
 				}
 			}
 
@@ -195,9 +186,9 @@ namespace SCHRODINGER_POISSON
 		}
 
 		const int _Nx;
-		const double _scale;
-		const double _coeff;
-		const dvector _x;
+		const double _scale; // scale factor for the _x : _scale*_x [micrometer]
+		const double _coeff; // hbar^2/2m0 : [ev*micrometer^2]
+		const dvector _x; // [micrometer]
 
 		SparseDoubleInt _H;
 	};
@@ -390,39 +381,185 @@ namespace SCHRODINGER_POISSON
 			return eps;
 		}
 	};
+
+	
+	inline std::vector<double> convert_psi_to_V(const Eigen::VectorXd& psi)
+	{
+		const int N = psi.size();
+		std::vector<double> V(N);
+		constexpr double KbT = 0.025851984732130292; //[ev]
+		constexpr double EcmEi = 0.56; // E_{c} - E_{i} [ev]
+		for(int i=0; i<N; ++i) {
+			V[i] = -psi(i)*KbT + EcmEi;
+		}
+		return std::move(V);
+	}
+	
 }
 
-void read_file(const char filename[], std::vector<double>& E)
+
+namespace TEMPORARY
 {
-	std::vector<double>().swap(E);
-
-	std::ifstream infile(filename);
-
-	while(true)
+	template<class VECTOR>
+	inline bool read_file(const char filename[], VECTOR& E)
 	{
-		double temp;
-		infile >> temp;
-		if(infile.eof()) {
-			break;
+		/*
+			x_{0}	E_{0}
+			x_{1}	E_{1}
+			  .       .
+			  .       .
+			  .       .
+			x_{n}	E_{n-1}
+		*/
+
+		std::list<double> tempList;
+		std::ifstream infile(filename);
+
+		if(!infile.is_open()) {
+			return false;
 		}
-		E.push_back(temp);
+
+		while(true)
+		{
+			double temp;
+			infile >> temp;
+			if(infile.eof()) {
+				break;
+			}
+			tempList.push_back(temp);
+		}
+
+		infile.close();
+
+		try
+		{
+			if(E.size() != tempList.size())	{
+				throw "  !Error: ::read_file\n  E.size() != tempList.size()";
+			}
+		}
+		catch(const char errmsg[])
+		{
+			std::cout << errmsg << std::endl;
+			std::abort();
+		}
+
+		int i = 0;
+		for(auto const& temp: tempList)
+		{
+			E[i] = temp;
+			i += 1;
+		}
+
+		return true;
 	}
 
-	infile.close();
+	
+	void psi_read_file(const char filename[], Eigen::VectorXd& psi, const std::vector<double>& psiBound) 
+	{
+		const int Npsi = psi.size();
+		std::vector<double> psir(Npsi + 2);
+		bool info = read_file(filename, psir);
+
+		if(!info)
+		{
+			assert(psiBound.size() == 2);
+
+			const double dpsi = (psiBound[1] - psiBound[0])/(Npsi - 1.);
+
+			std::cout << "  --Default: initial psi is constructed as a linear function.\n";
+
+			for(int i=0; i<Npsi; ++i) {
+				psi[i] = psiBound[0] + dpsi*i;
+			}
+		}
+		else
+		{
+			std::cout << "  --File: " << filename << std::endl;
+			for(int i=0; i<Npsi; ++i) {
+				psi[i] = psir[i+1];
+			}
+		}
+	}
+
+
+	void write_file(const char filename[], const std::vector<double>& x, const std::vector<double>& y)
+	{
+		std::ofstream wfile(filename);
+		assert(x.size() == y.size());
+
+		const int N = x.size();
+	
+		for(int i=0; i<N; ++i) {
+			wfile << x[i] << "\t" << y[i] << "\n";
+		}
+	
+		wfile.close();
+	}
 }
 
 
 int main(int argc, char* argv[])
 {
-	std::vector<double> Esub0p91, Esub0p19;
-	//read_file("eig_0p91.dat", Esub0p91);
-	//read_file("eig_0p19.dat", Esub0p19);
+	using dvector = std::vector<double>;
 
-	SCHRODINGER_POISSON::Number_density number(401, 4.);
+	constexpr int Npoints = 1001;
+	constexpr double Tsi = 1.; // [micrometer]
+	constexpr double KbT = 0.025851984732130292; //[ev]
+	const double qphis = -0.1; // [ev]
+	const double scale = 1., m0p91R = 0.91, m0p19R = 0.19;
+	const int nev = 100, ncv = Npoints/2;
+	
+	dvector x(Npoints), dopping(Npoints-2, -1e5/1.5);
 
-	//double result = number.avg_density(Esub0p91, Esub0p19);
+	for(int i=0; i<Npoints; ++i) {
+		x[i] = i/(Npoints - 1.);
+	}
 
-	//std::cout << "tot:" << result << std::endl;
+	dvector psin(1, -10); // q*phi/KbT [dimensionless]
+
+	SCHRODINGER_POISSON::chargeNeutrality neutral;
+	neutral.insert_dopping(dopping);
+
+	ROOT_FINDING::newton_method(neutral, psin, [](const dvector& J, dvector& x)->void{x[0] /= J[0];});
+
+	std::cout << psin[0]*KbT << std::endl;
+
+	// boundary conditions
+	dvector psiBound = {qphis/KbT, psin[0]};
+
+	SCHRODINGER_POISSON::PoissonEquation<SCHRODINGER_POISSON::permittivityForSilicon>
+		classical_poisson (x.size() - 2, dopping, x, psiBound, scale);
+
+	Eigen::VectorXd psi(Npoints - 2);
+
+	//std::vector<double> Esub0p91, Esub0p19;
+
+	TEMPORARY::psi_read_file("None", psi, psiBound);
+
+	ROOT_FINDING::newton_method(classical_poisson, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver());
+
+	SCHRODINGER_POISSON::SparseEigenSolver eigen_solver_m0p91R(x, scale, m0p91R);
+	SCHRODINGER_POISSON::SparseEigenSolver eigen_solver_m0p19R(x, scale, m0p19R);
+
+	dvector V = SCHRODINGER_POISSON::convert_psi_to_V(psi);
+
+	eigen_solver_m0p91R.insert_V(V);
+	eigen_solver_m0p19R.insert_V(V);
+
+	Eigen::MatrixXd waveFunc_m0p91R;
+	Eigen::MatrixXd waveFunc_m0p19R;
+	Eigen::VectorXd energy_m0p91R;
+	Eigen::VectorXd energy_m0p19R;
+
+	eigen_solver_m0p91R.compute(energy_m0p91R, waveFunc_m0p91R, nev, ncv);
+	eigen_solver_m0p19R.compute(energy_m0p19R, waveFunc_m0p19R, nev, ncv);
+
+	SCHRODINGER_POISSON::Si_Number_density densityIntegrator(1001, 5.);
+
+	dvector density = densityIntegrator.density(energy_m0p91R, energy_m0p91R,
+			          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
+
+	TEMPORARY::write_file("density.dat", x, density);
 
 	return 0;
 }

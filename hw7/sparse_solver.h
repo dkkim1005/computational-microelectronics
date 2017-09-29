@@ -19,6 +19,7 @@ namespace EIGEN_SOLVER
       {
       public:
         SymEigsSolver() {}
+
 	void operator()(const SparseDoubleInt& A, Eigen::VectorXd& evalues, Eigen::MatrixXd& evectors,
 			const int nev, const int ncv, const bool info = false) const
 	{
@@ -36,7 +37,7 @@ namespace EIGEN_SOLVER
 		int nconv = eigs.compute();
 
 		if(info) {
-			std::cout << "  --converged set: " << nconv << " (nev: " << nev << ")\n";
+			std::cout << "   --converged set(eigenvalues): " << nconv << " (nev: " << nev << ")\n";
 		}
 
 		if(eigs.info() != Spectra::SUCCESSFUL)
