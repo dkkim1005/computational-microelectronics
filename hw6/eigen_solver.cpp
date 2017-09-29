@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
 
 	// The number of width for discritization.
 	constexpr double EcmEi = 0.56; // E_{c} - E_{i} = (E_{c} - E_{v})/2.
-	constexpr int Nx = 1001, nev = 300;
+	constexpr int Nx = 1001, nev = 10;
 	const double scale = std::atof(argv[1]);
 	assert(Nx%2 == 1);
 	std::vector<double> x(Nx, 0); // [micrometer]
