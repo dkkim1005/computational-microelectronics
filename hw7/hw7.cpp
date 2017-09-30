@@ -400,19 +400,21 @@ namespace SCHRODINGER_POISSON
 
 namespace TEMPORARY
 {
-	template<class VECTOR>
-	inline bool read_file(const char filename[], VECTOR& E)
+	inline bool read_2d_file(const char filename[],
+			         std::vector<double>& x, std::vector<double>& y)
 	{
 		/*
-			x_{0}	E_{0}
-			x_{1}	E_{1}
+			x_{0}	y_{0}
+			x_{1}	y_{1}
 			  .       .
 			  .       .
 			  .       .
-			x_{n}	E_{n-1}
+			x_{n-1}	y_{n-1}
 		*/
 
-		std::list<double> tempList;
+		std::list<double> tempListx;
+		std::list<double> tempListy;
+
 		std::ifstream infile(filename);
 
 		if(!infile.is_open()) {
@@ -421,68 +423,49 @@ namespace TEMPORARY
 
 		while(true)
 		{
-			double temp;
-			infile >> temp;
+			double tempx, tempy;
+			infile >> tempx;
+			infile >> tempy;
+
 			if(infile.eof()) {
 				break;
 			}
-			tempList.push_back(temp);
+			tempListx.push_back(tempx);
+			tempListy.push_back(tempy);
 		}
 
 		infile.close();
 
-		try
-		{
-			if(E.size() != tempList.size())	{
-				throw "  !Error: ::read_file\n  E.size() != tempList.size()";
-			}
+		assert(tempListx.size() == tempListy.size());
+
+		const int N = tempListx.size();
+
+		if(N != x.size()) {
+			std::vector<double>(N).swap(x);
 		}
-		catch(const char errmsg[])
-		{
-			std::cout << errmsg << std::endl;
-			std::abort();
+		if(N != y.size()) {
+			std::vector<double>(N).swap(y);
 		}
 
 		int i = 0;
-		for(auto const& temp: tempList)
+		for(auto const& temp: tempListx)
 		{
-			E[i] = temp;
+			x[i] = temp;
 			i += 1;
+		}
+
+		int j = 0;
+		for(auto const& temp: tempListy)
+		{
+			y[j] = temp;
+			j += 1;
 		}
 
 		return true;
 	}
 
-	
-	void psi_read_file(const char filename[], Eigen::VectorXd& psi, const std::vector<double>& psiBound) 
-	{
-		const int Npsi = psi.size();
-		std::vector<double> psir(Npsi + 2);
-		bool info = read_file(filename, psir);
 
-		if(!info)
-		{
-			assert(psiBound.size() == 2);
-
-			const double dpsi = (psiBound[1] - psiBound[0])/(Npsi - 1.);
-
-			std::cout << "  --Default: initial psi is constructed as a linear function.\n";
-
-			for(int i=0; i<Npsi; ++i) {
-				psi[i] = psiBound[0] + dpsi*i;
-			}
-		}
-		else
-		{
-			std::cout << "  --File: " << filename << std::endl;
-			for(int i=0; i<Npsi; ++i) {
-				psi[i] = psir[i+1];
-			}
-		}
-	}
-
-
-	void write_file(const char filename[], const std::vector<double>& x, const std::vector<double>& y)
+	void write_2d_file(const char filename[], const std::vector<double>& x, const std::vector<double>& y)
 	{
 		std::ofstream wfile(filename);
 		assert(x.size() == y.size());
@@ -495,6 +478,19 @@ namespace TEMPORARY
 	
 		wfile.close();
 	}
+
+
+	void psi_read(const char filename[], Eigen::VectorXd& psi) 
+	{
+		std::vector<double> readX, readY;
+		bool info = read_2d_file(filename, readX, readY);
+
+		assert(info & psi.size() == readY.size()-2);
+
+		for(int i=0; i<psi.size(); ++i) {
+			psi(i) = readY[i+1];
+		}
+	}
 }
 
 
@@ -506,7 +502,8 @@ int main(int argc, char* argv[])
 	{
                 std::cout<<"  -- options \n"
                          <<"       argv[1]: q*phi_{s} [ev]\n"
-                         <<"       argv[2]: scale ([x] = scale*[micrometer])\n";
+                         <<"       argv[2]: scale ([x] = scale*[micrometer])\n"
+			 <<"       argv[3]: file to read initial phi (optional)\n";
                 return -1; 
 	}
 
@@ -540,9 +537,27 @@ int main(int argc, char* argv[])
 
 	Eigen::VectorXd psi(Npoints - 2);
 
-	//std::vector<double> Esub0p91, Esub0p19;
-
-	TEMPORARY::psi_read_file("None", psi, psiBound);
+	if(argc >= 4)
+	{
+		std::ifstream rFile(argv[3]);
+		if(rFile.is_open()) {
+			TEMPORARY::psi_read(argv[3], psi);
+		}
+		else
+		{
+			std::cout << "   !Error: we do not find the file to read a psi: " << argv[3] << std::endl;
+			std::abort();
+		}
+		std::cout << "  --file: " << argv[3] << std::endl;
+	}
+	else
+	{
+		double dpsi = (psiBound[1] - psiBound[0])/(Npoints - 1.);
+		for(int i=0; i<Npoints-2; ++i) {
+			psi(i) = psiBound[0] + (i+1)*dpsi;
+		}
+		std::cout << "  --Default: we set initial psi on a linear line" << std::endl;
+	}
 
 	ROOT_FINDING::newton_method(classical_poisson, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver());
 
@@ -567,7 +582,7 @@ int main(int argc, char* argv[])
 	dvector density = densityIntegrator.density(energy_m0p91R, energy_m0p91R,
 			          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
 
-	TEMPORARY::write_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
+	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
 
 	return 0;
 }
