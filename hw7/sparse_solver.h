@@ -37,7 +37,7 @@ namespace EIGEN_SOLVER
 		int nconv = eigs.compute();
 
 		if(info) {
-			std::cout << "   --converged set(eigenvalues): " << nconv << " (nev: " << nev << ")\n";
+			std::cout << "   -- converged set(eigenvalues): " << nconv << " (nev: " << nev << ")\n";
 		}
 
 		if(eigs.info() != Spectra::SUCCESSFUL)

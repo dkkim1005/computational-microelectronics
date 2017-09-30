@@ -70,10 +70,12 @@ namespace ROOT_FINDING
 
 			double cost = std::sqrt(LINALG::inner_product(f, f, Ndim));
 
-			std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
+			//std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
 
 			if(cost < tol) 
 			{
+
+				std::cout<<"      iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
 				isConverge = true;
 				break;
 			}

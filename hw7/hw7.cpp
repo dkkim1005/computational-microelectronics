@@ -115,7 +115,7 @@ namespace SCHRODINGER_POISSON
 	public:
 		SparseEigenSolver(const dvector& x, const double scale, const double meffRatio)
 		: _x(x), _Nx(x.size()), _scale(scale), _coeff(3.8099815e-8),
-		  _H(x.size()-2, x.size()-2)
+		  _H(x.size()-2, x.size()-2), _V(x.size()-2, 0)
 		{
 			const double dx = (_x[_Nx - 1] - _x[0])/(_Nx - 1.);
 
@@ -133,9 +133,13 @@ namespace SCHRODINGER_POISSON
 
 		void insert_V(const dvector& V)
 		{
+			assert(V.size() == _V.size());
 			for(int i=0; i<_Nx-2; ++i) {
-				_H.coeffRef(i, i) += V[i];
+				_H.coeffRef(i, i) -= _V[i]; // remove a past one
+				_H.coeffRef(i, i) += V[i]; // update a new one
 			}
+
+			_V = V; // update history
 		}
 
 		void compute(Eigen::VectorXd& energy, Eigen::MatrixXd& psi,
@@ -189,6 +193,7 @@ namespace SCHRODINGER_POISSON
 		const double _scale; // scale factor for the _x : _scale*_x [micrometer]
 		const double _coeff; // hbar^2/2m0 : [ev*micrometer^2]
 		const dvector _x; // [micrometer]
+		dvector _V; // history of the applied potential[ev]
 
 		SparseDoubleInt _H;
 	};
@@ -370,6 +375,151 @@ namespace SCHRODINGER_POISSON
 	}
 
 
+	// Poisson-Schrodinger combined solver
+	template<class PermittivityObj>
+	class SchrodingerPoissonEquation : public ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>
+	{
+		using ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>::_Ndim;
+		using dvector = std::vector<double>;
+	public:
+		SchrodingerPoissonEquation(const int Ndim, const dvector& dopping,
+					   const dvector& x, const dvector& boundaries,
+					   const dvector& ndensity, const double scale = 1.0)
+		: ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>(Ndim),
+	 	_J(Ndim, Ndim), _dopping(dopping), _x(x),
+		_psi0(boundaries), _nRatio(ndensity), _scale(scale)
+		{
+			assert(_Ndim == _dopping.size());
+			assert(_Ndim + 2 == _x.size());
+			assert(_Ndim + 2 == _nRatio.size());
+
+			for(auto& _n : _nRatio) {
+				_n /= 1.5*1e10; // n_i : 1.5*1e10 [cm^-3]
+			}
+		}
+
+		virtual ~SchrodingerPoissonEquation() {}
+
+		virtual void jacobian(const denseVector& psi);
+
+		virtual sparseMatrix& get_J() {
+			return _J;
+		}
+
+	protected:
+		virtual double _residual(const denseVector& psi, const int& i) const;
+
+		sparseMatrix _J;
+		/*
+	    	_coeff : q0^2 * n_i/(eps0 * KbT) [1/micrometer^2]
+			q0: unit charge
+			n_i: intrinsic carrier density(silicon)
+			eps0: vaccum permittivity
+			KbT: boltzman constant with room temperature
+		*/
+		static constexpr double _coeff = 0.0104992634866;
+		const double _scale;	      // [x] = _scale[micrometer]
+		std::vector<double> _dopping; // ratio: N+/n_i where N+ is dopping density
+		std::vector<double> _x;       // [micrometer]
+		std::vector<double> _nRatio; // ratio: n/n_i where n is electron density obtained from the schrodinger eq [dimensionless]
+		// psi := q*phi/KbT
+		std::vector<double> _psi0;    // boundary conditions at _x[0] and _x[_Ndim-1]
+		const PermittivityObj _epsf;  // relative permittivity
+		bool _isUpdated = false;
+	};
+
+
+	template<class PermittivityObj>
+	void SchrodingerPoissonEquation<PermittivityObj>::jacobian(const denseVector& psi)
+	{
+		for(int i=0; i<_Ndim; ++i)
+		{
+			double &x_ip1 = _x[i+2], &x_i = _x[i+1], &x_im1 = _x[i];
+		
+			/*
+			   _nRatio[n+1] : the ratio for the electron density with
+					  intrinsic carrier density at the 'n' site
+			*/
+			_J.coeffRef(i, i) = _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) +
+					    _epsf((x_i+x_im1)/2.)/(x_i-x_im1) +
+					    std::pow(_scale, 2)*_coeff*((x_ip1+x_i)/2. - (x_i+x_im1)/2.)*
+				    	    (_nRatio[i+1] + std::exp(-psi[i]));
+		
+		}
+
+		// off-diagonal for a jacobian matrix
+		if(!_isUpdated)
+		{
+			for(int i=1; i<_Ndim; ++i)
+			{
+				double &x_ip1 = _x[i+2], &x_i = _x[i+1], &x_im1 = _x[i];
+				_J.coeffRef(i, i-1) = -_epsf((x_i+x_im1)/2.)/(x_i - x_im1);
+				_J.coeffRef(i-1, i) = _J.coeffRef(i, i-1);
+			}
+			_isUpdated = true;
+		}
+
+		_J.makeCompressed();
+	}
+
+	template<class PermittivityObj>
+	double SchrodingerPoissonEquation<PermittivityObj>::_residual(const denseVector& psi, const int& i) const
+	{
+		/*
+			x0	phi0
+			x1	phi_0
+			x2	phi_1
+			.	  .
+			.	  .
+			.	  .
+			.	  .
+			x_n	phi_n-1
+			x_n+1	phi0
+		*/
+
+		/*
+		! equation set:
+
+			-_epsf(x_{i+0.5})(phi_{i+1} - phi_{i})/(x_{i+1} - x_{i}) +
+		 	_epsf(x_{i-0.5})*(phi_{i} - phi_{i-1})/(x_i - x_{i-1}) +
+		 	qn_i*(exp(phi_i/Vth) - exp(-phi_i/Vth) - N_i)*(x_{i}- x_{i-1}) = 0
+		*/
+
+		/*
+		   _nRatio[n+1] : the ratio for the electron density with
+				  intrinsic carrier density at the 'n' site
+		*/
+
+		double result, psi_ip1, psi_i, psi_im1;
+		const double &x_ip1 = _x[i+2], &x_i = _x[i+1], &x_im1 = _x[i];
+
+		if(i == 0)
+		{
+			psi_ip1 = psi[1];
+			psi_i   = psi[0];
+			psi_im1 = _psi0[0]; // boundary condition
+		}
+		else if(i == _Ndim-1)
+		{
+			psi_ip1 = _psi0[1]; // boundary condition
+			psi_i   = psi[_Ndim-1];
+			psi_im1 = psi[_Ndim-2];
+		}
+		else
+		{
+			psi_ip1 = psi[i+1];
+			psi_i   = psi[i];
+			psi_im1 = psi[i-1];
+		}
+
+		result = -_epsf((x_ip1+x_i)/2.)*(psi_ip1 - psi_i)/(x_ip1-x_i) +
+			  _epsf((x_i+x_im1)/2.)*(psi_i - psi_im1)/(x_i-x_im1) +
+		 	  std::pow(_scale, 2)*_coeff*((_nRatio[i+1] - std::exp(-psi_i)) - _dopping[i])*(x_i - x_im1);
+
+		return result;
+	}
+
+
 	class permittivityForSilicon
 	{
 	public:
@@ -512,7 +662,9 @@ int main(int argc, char* argv[])
 	constexpr double KbT = 0.025851984732130292; //[ev]
 	const double qphis = std::atof(argv[1]); // [ev]
 	const double scale = std::atof(argv[2]), m0p91R = 0.91, m0p19R = 0.19;
-	const int nev = 100, ncv = Npoints/2;
+	const int nev = 100, ncv = Npoints/2; // ARPACK parameter
+	const int niter = 100; // the # of the iteration for a loop
+	const double tols = 1e-3;
 	
 	dvector x(Npoints), dopping(Npoints-2, -1e5/1.5);
 
@@ -583,6 +735,47 @@ int main(int argc, char* argv[])
 			          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
 
 	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
+
+	using SEMICLASSICAL_EQUATION =
+		SCHRODINGER_POISSON::SchrodingerPoissonEquation<SCHRODINGER_POISSON::permittivityForSilicon>;
+
+	for(int i=1; i<=niter; ++i)
+	{
+		std::cout << "   -- The # of iterations: " << i << std::endl << std::flush;
+
+		SEMICLASSICAL_EQUATION schPoieq(Npoints-2, dopping, x, psiBound, density, scale);
+
+		std::cout << "\n   -- SEMICLASSICAL-EQUATION:" << std::endl << std::flush;
+
+		auto psi_hist = psi;
+
+		ROOT_FINDING::newton_method(schPoieq, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver(), 100000);
+
+		double delta_psi = std::sqrt((psi_hist - psi).norm());
+		
+		std::cout << "   -- |psi_hist - psi| : " << delta_psi << std::endl;
+
+		if(delta_psi < tols) {
+			std::cout << "   -- converge!" << std::endl;
+			break;
+		}
+	
+		V = SCHRODINGER_POISSON::convert_psi_to_V(psi);
+
+		eigen_solver_m0p91R.insert_V(V);
+		eigen_solver_m0p19R.insert_V(V);
+
+		std::cout << "   -- EigenSolver with the given potential 'V(x)':" << std::endl << std::flush;
+		eigen_solver_m0p91R.compute(energy_m0p91R, waveFunc_m0p91R, nev, ncv);
+		eigen_solver_m0p19R.compute(energy_m0p19R, waveFunc_m0p19R, nev, ncv);
+
+		std::cout << "   -- K-points integration : " << std::endl << std::flush;
+		density = densityIntegrator.density(energy_m0p91R, energy_m0p91R,
+				          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
+
+	}
+
+	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat2").c_str(), x, density);
 
 	return 0;
 }
