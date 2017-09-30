@@ -674,15 +674,19 @@ int main(int argc, char* argv[])
 
 	dvector psin(1, -10); // q*phi/KbT [dimensionless]
 
+	std::cout << "\n   !    Set initial starting points\n" << std::endl;
+	std::cout << "   -- Compute charge neutrality equation" << std::endl << std::flush;
 	SCHRODINGER_POISSON::chargeNeutrality neutral;
 	neutral.insert_dopping(dopping);
 
 	ROOT_FINDING::newton_method(neutral, psin, [](const dvector& J, dvector& x)->void{x[0] /= J[0];});
 
-	std::cout << psin[0]*KbT << std::endl;
-
 	// boundary conditions
 	dvector psiBound = {qphis/KbT, psin[0]};
+	std::cout << "   -- Boundary conditions :\n"
+		  << "      q0*phi(x_{0}): " << psiBound[0]*KbT << " [ev]"
+		  << "    , q0*phi(x_{N-1}): " << psiBound[1]*KbT << " [ev]"
+		  << std::endl << std::flush;
 
 	SCHRODINGER_POISSON::PoissonEquation<SCHRODINGER_POISSON::permittivityForSilicon>
 		classical_poisson (x.size() - 2, dopping, x, psiBound, scale);
@@ -700,7 +704,7 @@ int main(int argc, char* argv[])
 			std::cout << "   !Error: we do not find the file to read a psi: " << argv[3] << std::endl;
 			std::abort();
 		}
-		std::cout << "  --file: " << argv[3] << std::endl;
+		std::cout << "   -- file: " << argv[3] << std::endl;
 	}
 	else
 	{
@@ -708,7 +712,7 @@ int main(int argc, char* argv[])
 		for(int i=0; i<Npoints-2; ++i) {
 			psi(i) = psiBound[0] + (i+1)*dpsi;
 		}
-		std::cout << "  --Default: we set initial psi on a linear line" << std::endl;
+		std::cout << "   -- Default: we set initial psi on a linear line" << std::endl;
 	}
 
 	ROOT_FINDING::newton_method(classical_poisson, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver());
@@ -734,21 +738,22 @@ int main(int argc, char* argv[])
 	dvector density = densityIntegrator.density(energy_m0p91R, energy_m0p91R,
 			          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
 
-	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
 
 	using SEMICLASSICAL_EQUATION =
 		SCHRODINGER_POISSON::SchrodingerPoissonEquation<SCHRODINGER_POISSON::permittivityForSilicon>;
 
+	std::cout << "\n\n   ####### Start self-consistent loop! #######\n\n" << std::flush;
+
 	for(int i=1; i<=niter; ++i)
 	{
-		std::cout << "   -- The # of iterations: " << i << std::endl << std::flush;
+		std::cout << "\n   -- The # of iterations: " << i << std::endl << std::flush;
 
 		SEMICLASSICAL_EQUATION schPoieq(Npoints-2, dopping, x, psiBound, density, scale);
 
-		std::cout << "\n   -- SEMICLASSICAL-EQUATION:" << std::endl << std::flush;
+		std::cout << "   -- SEMICLASSICAL-EQUATION:" << std::endl << std::flush;
 
 		auto psi_hist = psi;
-
+		
 		ROOT_FINDING::newton_method(schPoieq, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver(), 100000);
 
 		double delta_psi = std::sqrt((psi_hist - psi).norm());
@@ -756,7 +761,7 @@ int main(int argc, char* argv[])
 		std::cout << "   -- |psi_hist - psi| : " << delta_psi << std::endl;
 
 		if(delta_psi < tols) {
-			std::cout << "   -- converge!" << std::endl;
+			std::cout << "\n\n   *-- converge! --* \n\n" << std::endl;
 			break;
 		}
 	
@@ -775,7 +780,7 @@ int main(int argc, char* argv[])
 
 	}
 
-	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat2").c_str(), x, density);
+	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
 
 	return 0;
 }
