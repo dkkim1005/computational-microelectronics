@@ -249,12 +249,12 @@ namespace SCHRODINGER_POISSON
 
 
 	template<class PermittivityObj>
-	class PoissonEquation : public ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>
+	class Si_Poisson_Equation : public ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>
 	{
 		using ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>::_Ndim;
 		using dvector = std::vector<double>;
 	public:
-		PoissonEquation(const int Ndim, const dvector& dopping,
+		Si_Poisson_Equation(const int Ndim, const dvector& dopping,
 				const dvector& x, const dvector& boundaries, const double scale = 1.0)
 		: ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>(Ndim),
 	 	_J(Ndim, Ndim), _dopping(dopping), _x(x), _psi0(boundaries), _scale(scale)
@@ -263,7 +263,7 @@ namespace SCHRODINGER_POISSON
 			assert(_Ndim + 2 == _x.size());
 		}
 
-		virtual ~PoissonEquation() {}
+		virtual ~Si_Poisson_Equation() {}
 
 		virtual void jacobian(const denseVector& psi);
 
@@ -294,7 +294,7 @@ namespace SCHRODINGER_POISSON
 
 
 	template<class PermittivityObj>
-	void PoissonEquation<PermittivityObj>::jacobian(const denseVector& psi)
+	void Si_Poisson_Equation<PermittivityObj>::jacobian(const denseVector& psi)
 	{
 		for(int i=0; i<_Ndim; ++i)
 		{
@@ -323,7 +323,7 @@ namespace SCHRODINGER_POISSON
 	}
 
 	template<class PermittivityObj>
-	double PoissonEquation<PermittivityObj>::_residual(const denseVector& psi, const int& i) const
+	double Si_Poisson_Equation<PermittivityObj>::_residual(const denseVector& psi, const int& i) const
 	{
 		/*
 			x0	phi0
@@ -377,12 +377,12 @@ namespace SCHRODINGER_POISSON
 
 	// Poisson-Schrodinger combined solver
 	template<class PermittivityObj>
-	class SchrodingerPoissonEquation : public ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>
+	class Si_Schrodinger_Poisson_Equation : public ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>
 	{
 		using ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>::_Ndim;
 		using dvector = std::vector<double>;
 	public:
-		SchrodingerPoissonEquation(const int Ndim, const dvector& dopping,
+		Si_Schrodinger_Poisson_Equation(const int Ndim, const dvector& dopping,
 					   const dvector& x, const dvector& boundaries,
 					   const dvector& ndensity, const double scale = 1.0)
 		: ROOT_FINDING::ResidualBase<sparseMatrix, denseVector>(Ndim),
@@ -398,7 +398,7 @@ namespace SCHRODINGER_POISSON
 			}
 		}
 
-		virtual ~SchrodingerPoissonEquation() {}
+		virtual ~Si_Schrodinger_Poisson_Equation() {}
 
 		virtual void jacobian(const denseVector& psi);
 
@@ -430,7 +430,7 @@ namespace SCHRODINGER_POISSON
 
 
 	template<class PermittivityObj>
-	void SchrodingerPoissonEquation<PermittivityObj>::jacobian(const denseVector& psi)
+	void Si_Schrodinger_Poisson_Equation<PermittivityObj>::jacobian(const denseVector& psi)
 	{
 		for(int i=0; i<_Ndim; ++i)
 		{
@@ -463,7 +463,7 @@ namespace SCHRODINGER_POISSON
 	}
 
 	template<class PermittivityObj>
-	double SchrodingerPoissonEquation<PermittivityObj>::_residual(const denseVector& psi, const int& i) const
+	double Si_Schrodinger_Poisson_Equation<PermittivityObj>::_residual(const denseVector& psi, const int& i) const
 	{
 		/*
 			x0	phi0
@@ -688,7 +688,7 @@ int main(int argc, char* argv[])
 		  << "    , q0*phi(x_{N-1}): " << psiBound[1]*KbT << " [ev]"
 		  << std::endl << std::flush;
 
-	SCHRODINGER_POISSON::PoissonEquation<SCHRODINGER_POISSON::permittivityForSilicon>
+	SCHRODINGER_POISSON::Si_Poisson_Equation<SCHRODINGER_POISSON::permittivityForSilicon>
 		classical_poisson (x.size() - 2, dopping, x, psiBound, scale);
 
 	Eigen::VectorXd psi(Npoints - 2);
@@ -740,7 +740,7 @@ int main(int argc, char* argv[])
 
 
 	using SEMICLASSICAL_EQUATION =
-		SCHRODINGER_POISSON::SchrodingerPoissonEquation<SCHRODINGER_POISSON::permittivityForSilicon>;
+		SCHRODINGER_POISSON::Si_Schrodinger_Poisson_Equation<SCHRODINGER_POISSON::permittivityForSilicon>;
 
 	std::cout << "\n\n   ####### Start self-consistent loop! #######\n\n" << std::flush;
 
@@ -777,7 +777,6 @@ int main(int argc, char* argv[])
 		std::cout << "   -- K-points integration : " << std::endl << std::flush;
 		density = densityIntegrator.density(energy_m0p91R, energy_m0p91R,
 				          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
-
 	}
 
 	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
