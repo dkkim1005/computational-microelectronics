@@ -24,6 +24,8 @@ inline bool read_file(const char filename[], dvector& x, dvector& y)
 		return false;
 	}
 
+	std::cout << "  --file:"<< filename << std::endl;
+
 	while(true)
 	{
 		double tempx, tempy;
@@ -62,12 +64,12 @@ inline bool read_file(const char filename[], dvector& x, dvector& y)
 int main(int argc, char* argv[])
 {
 	std::vector<double> x, E;
-	assert(read_file("density.dat", x, E));
+	assert(read_file(argv[1], x, E));
 
 	const int N = x.size();
 	const double dx = (x[N-1] - x[0])/(N - 1.);
 
-	double result = NUMERIC_CALCULUS::simpson_1D_method(&x[0], x.size(), dx)*1e-4;
+	double result = NUMERIC_CALCULUS::simpson_1D_method(&E[0], E.size(), dx)*1e-4;
 
 	std::cout << result << std::endl;
 

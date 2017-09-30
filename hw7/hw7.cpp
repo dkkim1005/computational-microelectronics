@@ -502,17 +502,25 @@ int main(int argc, char* argv[])
 {
 	using dvector = std::vector<double>;
 
+	if(argc == 1)
+	{
+                std::cout<<"  -- options \n"
+                         <<"       argv[1]: q*phi_{s} [ev]\n"
+                         <<"       argv[2]: scale ([x] = scale*[micrometer])\n";
+                return -1; 
+	}
+
 	constexpr int Npoints = 1001;
 	constexpr double Tsi = 1.; // [micrometer]
 	constexpr double KbT = 0.025851984732130292; //[ev]
-	const double qphis = -0.1; // [ev]
-	const double scale = 1., m0p91R = 0.91, m0p19R = 0.19;
+	const double qphis = std::atof(argv[1]); // [ev]
+	const double scale = std::atof(argv[2]), m0p91R = 0.91, m0p19R = 0.19;
 	const int nev = 100, ncv = Npoints/2;
 	
 	dvector x(Npoints), dopping(Npoints-2, -1e5/1.5);
 
 	for(int i=0; i<Npoints; ++i) {
-		x[i] = i/(Npoints - 1.);
+		x[i] = i*Tsi/(Npoints - 1.);
 	}
 
 	dvector psin(1, -10); // q*phi/KbT [dimensionless]
@@ -559,7 +567,7 @@ int main(int argc, char* argv[])
 	dvector density = densityIntegrator.density(energy_m0p91R, energy_m0p91R,
 			          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
 
-	TEMPORARY::write_file("density.dat", x, density);
+	TEMPORARY::write_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
 
 	return 0;
 }
