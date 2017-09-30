@@ -641,6 +641,18 @@ namespace TEMPORARY
 			psi(i) = readY[i+1];
 		}
 	}
+
+	template<class T1, class T2>
+	double delta_norm(const T1& v1, const T2& v2)
+	{
+		assert(v1.size() == v2.size());
+		const int N = v1.size();
+		double accum = 0;
+		for(int i=0; i<N; ++i) {
+			accum += std::pow(v1[i] - v2[i], 2);
+		}
+		return std::sqrt(accum);
+	}
 }
 
 
@@ -664,7 +676,7 @@ int main(int argc, char* argv[])
 	const double scale = std::atof(argv[2]), m0p91R = 0.91, m0p19R = 0.19;
 	const int nev = 100, ncv = Npoints/2; // ARPACK parameter
 	const int niter = 100; // the # of the iteration for a loop
-	const double tols = 1e-3;
+	const double tols = 1e-7;
 	
 	dvector x(Npoints), dopping(Npoints-2, -1e5/1.5);
 
@@ -685,11 +697,9 @@ int main(int argc, char* argv[])
 	dvector psiBound = {qphis/KbT, psin[0]};
 	std::cout << "   -- Boundary conditions :\n"
 		  << "      q0*phi(x_{0}): " << psiBound[0]*KbT << " [ev]"
-		  << "    , q0*phi(x_{N-1}): " << psiBound[1]*KbT << " [ev]"
+		  << ",   q0*phi(x_{N-1}): " << psiBound[1]*KbT << " [ev]"
 		  << std::endl << std::flush;
 
-	SCHRODINGER_POISSON::Si_Poisson_Equation<SCHRODINGER_POISSON::permittivityForSilicon>
-		classical_poisson (x.size() - 2, dopping, x, psiBound, scale);
 
 	Eigen::VectorXd psi(Npoints - 2);
 
@@ -708,14 +718,17 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
+		SCHRODINGER_POISSON::Si_Poisson_Equation<SCHRODINGER_POISSON::permittivityForSilicon>
+			classical_poisson (x.size() - 2, dopping, x, psiBound, scale);
+
 		double dpsi = (psiBound[1] - psiBound[0])/(Npoints - 1.);
 		for(int i=0; i<Npoints-2; ++i) {
 			psi(i) = psiBound[0] + (i+1)*dpsi;
 		}
 		std::cout << "   -- Default: we set initial psi on a linear line" << std::endl;
-	}
 
-	ROOT_FINDING::newton_method(classical_poisson, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver());
+		ROOT_FINDING::newton_method(classical_poisson, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver());
+	}
 
 	SCHRODINGER_POISSON::SparseEigenSolver eigen_solver_m0p91R(x, scale, m0p91R);
 	SCHRODINGER_POISSON::SparseEigenSolver eigen_solver_m0p19R(x, scale, m0p19R);
@@ -752,18 +765,8 @@ int main(int argc, char* argv[])
 
 		std::cout << "   -- SEMICLASSICAL-EQUATION:" << std::endl << std::flush;
 
-		auto psi_hist = psi;
-		
 		ROOT_FINDING::newton_method(schPoieq, psi, LINEAR_SOLVER::EIGEN::CholeskyDecompSolver(), 100000);
 
-		double delta_psi = std::sqrt((psi_hist - psi).norm());
-		
-		std::cout << "   -- |psi_hist - psi| : " << delta_psi << std::endl;
-
-		if(delta_psi < tols) {
-			std::cout << "\n\n   *-- converge! --* \n\n" << std::endl;
-			break;
-		}
 	
 		V = SCHRODINGER_POISSON::convert_psi_to_V(psi);
 
@@ -774,12 +777,34 @@ int main(int argc, char* argv[])
 		eigen_solver_m0p91R.compute(energy_m0p91R, waveFunc_m0p91R, nev, ncv);
 		eigen_solver_m0p19R.compute(energy_m0p19R, waveFunc_m0p19R, nev, ncv);
 
+		auto density_hist = density;
+
 		std::cout << "   -- K-points integration : " << std::endl << std::flush;
 		density = densityIntegrator.density(energy_m0p91R, energy_m0p91R,
 				          waveFunc_m0p19R, waveFunc_m0p19R); // [cm^-3]
+
+		double delta_density = TEMPORARY::delta_norm(density_hist, density)/
+				       std::sqrt(LINALG::inner_product(density, density, Npoints));
+
+		std::cout << "      |n_{i} - n_{i+1}|/|n_{i+1}|: " << delta_density << std::endl;
+
+		if(delta_density < tols)
+		{
+			std::cout << "\n\n   *-- converge! --* \n\n" << std::endl;
+			break;
+		}
 	}
 
 	TEMPORARY::write_2d_file(("density_" + std::string(argv[1]) + ".dat").c_str(), x, density);
+
+	std::vector<double> psiw(Npoints, 0);
+	psiw[0] = psiBound[0];
+	psiw[Npoints-1] = psiBound[1];
+	for(int i=0; i<Npoints-2; ++i) {
+		psiw[i+1] = psi(i);
+	}
+
+	TEMPORARY::write_2d_file(("psi_" + std::string(argv[1]) + ".dat").c_str(), x, psiw);
 
 	return 0;
 }
