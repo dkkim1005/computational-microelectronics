@@ -79,10 +79,8 @@ namespace SCHRODINGER_POISSON
 		{
 			assert(Esub.size() == Psi.cols());
 
-			dvector k(_N, 0);
 			const int Npoints = Psi.rows() + 2, nev = Esub.size();
-			dvector nx(Npoints, 0);
-			nx[0] = 0; nx[Npoints-1] = 0;
+			dvector k(_N, 0), nx(Npoints, 0);
 
 			for(int i=0; i<_N; ++i) {
 				k[i] = i*_Width/(_N - 1.) - _Width/2.;
