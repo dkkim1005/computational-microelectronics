@@ -26,6 +26,19 @@ namespace NUMERIC_CALCULUS
 		return accum;
 	}
 
+	double Trapezoidal_1D(const double* psi, const double* x, const int N)
+	{
+		assert(N%2 == 1);
+
+		double accum = 0;
+
+		for(int i=0; i<N-1; ++i) {
+			accum += (psi[i+1] + psi[i])/2.*(x[i+1] - x[i]);
+		}
+
+		return accum;
+	}
+
 	// Ref : http://www.physics.usyd.edu.au/teach_res/mp/doc/math_integration_2D.pdf
 	using dvector = std::vector<double>;
 
