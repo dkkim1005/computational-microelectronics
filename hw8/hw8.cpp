@@ -157,7 +157,7 @@ namespace KuboGreenwood
 	};
 
 
-	double test_routine()
+	void test_routine()
 	{
 		const int Npoints = 1001;
 		const double Width = 6.;
