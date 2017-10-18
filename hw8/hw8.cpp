@@ -6,7 +6,7 @@
 
 namespace KuboGreenwood
 {
-	const double _coeff1 = 5.184182*1e-3, // q*hbar^2/(m0^2*KbT) [C*(cm)^2/(J*s)]
+	const double _coeff1 = 5.184182*1e-7, // q*hbar^2/(m0^2*KbT) [C*m^2/(J*s)]
 		     _coeff2 = 3.8099815e-2,  // hbar^2/(2*m0) [ev*nm^2]
 		     _KbT    = 0.0258520;     // [ev]
 
@@ -28,13 +28,13 @@ namespace KuboGreenwood
 
 		double operator()(const double& ky, const double& kz) const {
 			/*
-			   _coeff1  : [C*(cm)^2/(J*s)]
-			   _KKperRR : [nanometer^-2] = 1e14*[cm^-2]
+			   _coeff1  : [C*m^2/(J*s)]
+			   _KKperRR : [nanometer^-2] = 1e18*[m^-2]
 				      (domain K of the _dFD has dimension for the [nm] scale)
 	  		   _Tau     : [sec]
 			   _dFD     : [dimensionless]
 			*/
-			return -_coeff1*1e14*_KKperRR(ky, kz)*_Tau(ky, kz)*_dFD(ky, kz);
+			return -_coeff1*1e18*_KKperRR(ky, kz)*_Tau(ky, kz)*_dFD(ky, kz);
 		}
 
 	private:
@@ -163,7 +163,11 @@ namespace KuboGreenwood
 			k[i] = i*Width/(Npoints - 1.) - Width/2.;
 		}
 
-		double numeYY0p91accum = 0, numeZZ0p91accum = 0, denom0p91accum = 0;
+		double numeYY0p91accum = 0,
+		       numeZZ0p91accum = 0,
+		       numeYZ0p91accum = 0,
+		       numeZY0p91accum = 0,
+		       denom0p91accum = 0;
 
 		for(int i=0; i<N_Esub0p91; ++i)
 		{
@@ -178,19 +182,29 @@ namespace KuboGreenwood
 
 			numerator<kernelYY, kernelTau> numyy(Info, kYY, kTau);
 			numerator<kernelZZ, kernelTau> numzz(Info, kZZ, kTau);
+			numerator<kernelYZ, kernelTau> numyz(Info, kYZ, kTau);
+			numerator<kernelZY, kernelTau> numzy(Info, kZY, kTau);
 			denominator denomFunctor(Info);
 
 			const double numeYY = Integrator(numyy, k, k),
 				     numeZZ = Integrator(numzz, k, k),
+				     numeYZ = Integrator(numyz, k, k),
+				     numeZY = Integrator(numzy, k, k),
 				     denom  = Integrator(denomFunctor, k, k);
 
 			numeYY0p91accum += numeYY;
 			numeZZ0p91accum += numeZZ;
+			numeYZ0p91accum += numeYZ;
+			numeZY0p91accum += numeZY;
 			denom0p91accum  += denom;
 		}
 
 
-		double numeYY0p19accum = 0, numeZZ0p19accum = 0, denom0p19accum = 0;
+		double numeYY0p19accum = 0,
+		       numeZZ0p19accum = 0,
+		       numeYZ0p19accum = 0,
+		       numeZY0p19accum = 0,
+		       denom0p19accum = 0;
 
 		for(int i=0; i<N_Esub0p19; ++i)
 		{
@@ -205,14 +219,20 @@ namespace KuboGreenwood
 
 			numerator<kernelYY, kernelTau> numyy(Info, kYY, kTau);
 			numerator<kernelZZ, kernelTau> numzz(Info, kZZ, kTau);
+			numerator<kernelYZ, kernelTau> numyz(Info, kYZ, kTau);
+			numerator<kernelZY, kernelTau> numzy(Info, kZY, kTau);
 			denominator denomFunctor(Info);
 
 			const double numeYY = Integrator(numyy, k, k),
 				     numeZZ = Integrator(numzz, k, k),
+				     numeYZ = Integrator(numyz, k, k),
+				     numeZY = Integrator(numzy, k, k),
 				     denom  = Integrator(denomFunctor, k, k);
 
 			numeYY0p19accum += numeYY;
 			numeZZ0p19accum += numeZZ;
+			numeYZ0p19accum += numeYZ;
+			numeZY0p19accum += numeZY;
 			denom0p19accum  += denom;
 		}
 
@@ -222,8 +242,11 @@ namespace KuboGreenwood
 		       muzz = (2.*numeZZ0p91accum + 4.*numeZZ0p19accum)/
 			      (2.*denom0p91accum + 4.*denom0p19accum),
 
-		       muyz = 0., muzy = 0.;
+		       muyz = (2.*numeYZ0p91accum + 4.*numeYZ0p19accum)/
+			      (2.*denom0p91accum + 4.*denom0p19accum),
 
+		       muzz = (2.*numeZY0p91accum + 4.*numeZY0p19accum)/
+			      (2.*denom0p91accum + 4.*denom0p19accum);
 
 		std::move(muMatrix(muyy, muzz, muyz, muzy));
 	}
