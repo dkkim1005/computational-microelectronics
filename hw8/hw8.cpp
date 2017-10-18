@@ -24,7 +24,7 @@ namespace KuboGreenwood
 		numerator(const infoStorage& Info,
 			  const TensorKernel& KKperRR, const TauKernel& Tau)
 		: _myyR(Info.myyR), _mzzR(Info.mzzR), _Esub(Info.Esub),
-		  _KKperRR(KKperRR), _Tau(Tau), _dFD(Info) {}
+		  _KKperRR(KKperRR), _Tau(Tau) {}
 
 		double operator()(const double& ky, const double& kz) const {
 			/*
@@ -34,7 +34,7 @@ namespace KuboGreenwood
 	  		   _Tau     : [sec]
 			   _dFD     : [dimensionless]
 			*/
-			return _coeff1*1e14*_KKperRR(ky, kz)*_Tau(ky, kz)*_dFD(ky, kz);
+			return -_coeff1*1e14*_KKperRR(ky, kz)*_Tau(ky, kz)*_dFD(ky, kz);
 		}
 
 	private:
@@ -42,22 +42,12 @@ namespace KuboGreenwood
 		const TensorKernel& _KKperRR;
 		const TauKernel& _Tau;
 
-		class derivFermiDirac
+		//derivative with the Fermi-Dirac distribution
+		double _dFD(const double& ky, const double& kz) const
 		{
-		public:
-			explicit derivFermiDirac(const infoStorage& Info)
-			: _myyR(Info.myyR), _mzzR(Info.mzzR), _Esub(Info.Esub) {}
-
-			double operator()(const double& ky, const double& kz) const
-			{
-				return -1./std::pow(std::exp((_Esub + _coeff2*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT) + 1., 2)*
-					   std::exp((_Esub + _coeff2*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT);
-			}
-		private:
-			const double _myyR, _mzzR, _Esub;
-		};
-
-		const derivFermiDirac _dFD;
+			const double x = (_Esub + _coeff2*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT;
+			return -std::exp(x)/std::pow(std::exp(x) + 1., 2);
+		}
 	};
 
 
@@ -65,7 +55,7 @@ namespace KuboGreenwood
 	{
 	public:
 		explicit denominator(const infoStorage& Info)
-		: _myyR(Info.myyR), _mzzR(Info.mzzR), _Esub(Info.Esub), _FD(Info) {}
+		: _myyR(Info.myyR), _mzzR(Info.mzzR), _Esub(Info.Esub) {}
 
 		double operator()(const double& ky, const double& kz) const {
 			// _FD : [dimensionless]
@@ -74,21 +64,13 @@ namespace KuboGreenwood
 	private:
 		const double _myyR, _mzzR, _Esub;
 
-		class FermiDirac
+		
+		// Fermi-Dirac distribution
+		double _FD(const double& ky, const double& kz) const
 		{
-		public:
-			explicit FermiDirac(const infoStorage& Info)
-			: _myyR(Info.myyR), _mzzR(Info.mzzR), _Esub(Info.Esub) {}
-
-			double operator()(const double& ky, const double& kz) const {
-				return 1./(std::exp((_Esub + _coeff2*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT) + 1.);
-			}
-
-		private:
-			const double _myyR, _mzzR, _Esub;
-		};
-
-		const FermiDirac _FD;
+			const double x = (_Esub + _coeff2*(ky*ky/_myyR + kz*kz/_mzzR))/_KbT;
+			return 1./(std::exp(x) + 1.);
+		}
 	};
 
 
@@ -157,27 +139,23 @@ namespace KuboGreenwood
 	};
 
 
-	void test_routine()
+	struct muMatrix
 	{
-		const int Npoints = 1001;
-		const double Width = 6.;
-		infoStorage Info;
-		Info.myyR = 0.91;
-		Info.mzzR = 0.19;
-		Info.Esub = 0.5;
+		muMatrix(const double muyy_, const double muzz_,
+			 const double muyz_, const double muzy_)
+			: muyy(muyy_), muzz(muzz_), muyz(muyz_), muzy(muzy_) {}
 
-		kernelYY kYY(Info);
-		kernelZZ kZZ(Info);
-		kernelYZ kYZ(Info);
-		kernelZY kZY(Info);
-		kernelTau kTau;
+		double muyy, muzz, muyz, muzy;
+	};
 
-		numerator<kernelYY, kernelTau> numyy(Info, kYY, kTau);
-		numerator<kernelZZ, kernelTau> numzz(Info, kZZ, kTau);
-		numerator<kernelYZ, kernelTau> numyz(Info, kYZ, kTau);
-		numerator<kernelZY, kernelTau> numzy(Info, kZY, kTau);
+	template<class VECTOR1, class VECTOR2>
+	muMatrix mobility(const VECTOR1& Esub0p91, const VECTOR2& Esub0p19,
+		      const int Npoints = 1001, const double Width = 6.)
+	{
+		const int N_Esub0p91 = Esub0p91.size(),
+			  N_Esub0p19 = Esub0p19.size();
 
-		denominator denomFunctor(Info);
+		NUMERIC_CALCULUS::simpson_2d_method Integrator(Npoints);
 
 		std::vector<double> k(Npoints, 0);
 	
@@ -185,25 +163,74 @@ namespace KuboGreenwood
 			k[i] = i*Width/(Npoints - 1.) - Width/2.;
 		}
 
-		NUMERIC_CALCULUS::simpson_2d_method Integrator(Npoints);
+		double numeYY0p91accum = 0, numeZZ0p91accum = 0, denom0p91accum = 0;
 
-		const double numeYY = Integrator(numyy, k, k),
-			     numeZZ = Integrator(numzz, k, k),
-			     numeYZ = Integrator(numyz, k, k),
-			     numeZY = Integrator(numzy, k, k),
-			     denom  = Integrator(denomFunctor, k, k);
+		for(int i=0; i<N_Esub0p91; ++i)
+		{
+			infoStorage Info;
+			Info.myyR = 0.19;
+			Info.mzzR = 0.19;
+			Info.Esub = Esub0p91[i];
 
-		std::cout << "mu_{yy} : " << numeYY/denom << " [cm^2/(V*sec)]" << std::endl;
-		std::cout << "mu_{zz} : " << numeZZ/denom << " [cm^2/(V*sec)]" << std::endl;
-		std::cout << "mu_{yz} : " << numeYZ/denom << " [cm^2/(V*sec)]" << std::endl;
-		std::cout << "mu_{zy} : " << numeZY/denom << " [cm^2/(V*sec)]" << std::endl;
+			kernelYY kYY(Info);
+			kernelZZ kZZ(Info);
+			kernelTau kTau;
+
+			numerator<kernelYY, kernelTau> numyy(Info, kYY, kTau);
+			numerator<kernelZZ, kernelTau> numzz(Info, kZZ, kTau);
+			denominator denomFunctor(Info);
+
+			const double numeYY = Integrator(numyy, k, k),
+				     numeZZ = Integrator(numzz, k, k),
+				     denom  = Integrator(denomFunctor, k, k);
+
+			numeYY0p91accum += numeYY;
+			numeZZ0p91accum += numeZZ;
+			denom0p91accum  += denom;
+		}
+
+
+		double numeYY0p19accum = 0, numeZZ0p19accum = 0, denom0p19accum = 0;
+
+		for(int i=0; i<N_Esub0p19; ++i)
+		{
+			infoStorage Info;
+			Info.myyR = 0.91;
+			Info.myyR = 0.19;
+			Info.Esub = Esub0p19[i];
+
+			kernelYY kYY(Info);
+			kernelZZ kZZ(Info);
+			kernelTau kTau;
+
+			numerator<kernelYY, kernelTau> numyy(Info, kYY, kTau);
+			numerator<kernelZZ, kernelTau> numzz(Info, kZZ, kTau);
+			denominator denomFunctor(Info);
+
+			const double numeYY = Integrator(numyy, k, k),
+				     numeZZ = Integrator(numzz, k, k),
+				     denom  = Integrator(denomFunctor, k, k);
+
+			numeYY0p19accum += numeYY;
+			numeZZ0p19accum += numeZZ;
+			denom0p19accum  += denom;
+		}
+
+		double muyy = (2.*numeYY0p91accum + 4.*numeYY0p19accum)/
+			      (2.*denom0p91accum + 4.*denom0p19accum),
+
+		       muzz = (2.*numeZZ0p91accum + 4.*numeZZ0p19accum)/
+			      (2.*denom0p91accum + 4.*denom0p19accum),
+
+		       muyz = 0., muzy = 0.;
+
+
+		std::move(muMatrix(muyy, muzz, muyz, muzy));
 	}
 }
 
 
 int main(int argc, char* argv[])
 {
-	KuboGreenwood::test_routine();
-
 	return 0;
 }

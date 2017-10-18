@@ -613,7 +613,8 @@ namespace TEMPORARY
 	}
 
 
-	void write_2d_file(const char filename[], const std::vector<double>& x, const std::vector<double>& y)
+	template<class VECTOR1, class VECTOR2>
+	void write_2d_file(const char filename[], const VECTOR1& x, const VECTOR2& y)
 	{
 		std::ofstream wfile(filename);
 		assert(x.size() == y.size());
@@ -803,6 +804,8 @@ int main(int argc, char* argv[])
 	}
 
 	TEMPORARY::write_2d_file(("psi_" + std::string(argv[1]) + ".dat").c_str(), x, psiw);
+
+	TEMPORARY::write_2d_file("e-0p91-0p19.dat", energy_m0p91R, energy_m0p19R);
 
 	return 0;
 }
