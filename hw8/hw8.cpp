@@ -74,7 +74,7 @@ namespace KuboGreenwood
 	};
 
 
-	class kernelYY // [nanometer^-2] = 1e14*[cm^-2]
+	class kernelYY // [nanometer^-2] = 1e18*[m^-2]
 	{
 	public:
 		explicit kernelYY(const infoStorage& Info)
@@ -88,7 +88,7 @@ namespace KuboGreenwood
 	};
 
 
-	class kernelZZ // [nanometer^-2] = 1e14*[cm^-2]
+	class kernelZZ // [nanometer^-2] = 1e18*[m^-2]
 	{
 	public:
 		explicit kernelZZ(const infoStorage& Info)
@@ -102,7 +102,7 @@ namespace KuboGreenwood
 	};
 
 
-	class kernelYZ // [nanometer^-2] = 1e14*[cm^-2]
+	class kernelYZ // [nanometer^-2] = 1e18*[m^-2]
 	{
 	public:
 		explicit kernelYZ(const infoStorage& Info)
@@ -116,7 +116,7 @@ namespace KuboGreenwood
 	};
 
 
-	class kernelZY // [nanometer^-2] = 1e14*[cm^-2]
+	class kernelZY // [nanometer^-2] = 1e18*[m^-2]
 	{
 	public:
 		explicit kernelZY(const infoStorage& Info)
@@ -130,7 +130,7 @@ namespace KuboGreenwood
 	};
 
 
-	class kernelTau // [nanometer^-2] = 1e14*[cm^-2]
+	class kernelTau
 	{
 	public:
 		double operator()(const double& ky, const double& kz) const {
