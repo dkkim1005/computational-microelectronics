@@ -1,7 +1,9 @@
 #include <iostream>
 #include <vector>
+#include <list>
 #include <functional>
 #include <cmath>
+#include <fstream>
 #include "calculus.h"
 
 namespace KuboGreenwood
@@ -145,6 +147,12 @@ namespace KuboGreenwood
 			 const double muyz_, const double muzy_)
 			: muyy(muyy_), muzz(muzz_), muyz(muyz_), muzy(muzy_) {}
 
+		muMatrix(const muMatrix& rhs)
+			: muyy(rhs.muyy), muzz(rhs.muzz), muyz(rhs.muyz), muzy(rhs.muzy) {}
+
+		muMatrix(const muMatrix&& rhs)
+			: muyy(rhs.muyy), muzz(rhs.muzz), muyz(rhs.muyz), muzy(rhs.muzy) {}
+
 		double muyy, muzz, muyz, muzy;
 	};
 
@@ -178,6 +186,8 @@ namespace KuboGreenwood
 
 			kernelYY kYY(Info);
 			kernelZZ kZZ(Info);
+			kernelYZ kYZ(Info);
+			kernelZY kZY(Info);
 			kernelTau kTau;
 
 			numerator<kernelYY, kernelTau> numyy(Info, kYY, kTau);
@@ -215,6 +225,8 @@ namespace KuboGreenwood
 
 			kernelYY kYY(Info);
 			kernelZZ kZZ(Info);
+			kernelYZ kYZ(Info);
+			kernelZY kZY(Info);
 			kernelTau kTau;
 
 			numerator<kernelYY, kernelTau> numyy(Info, kYY, kTau);
@@ -245,15 +257,92 @@ namespace KuboGreenwood
 		       muyz = (2.*numeYZ0p91accum + 4.*numeYZ0p19accum)/
 			      (2.*denom0p91accum + 4.*denom0p19accum),
 
-		       muzz = (2.*numeZY0p91accum + 4.*numeZY0p19accum)/
+		       muzy = (2.*numeZY0p91accum + 4.*numeZY0p19accum)/
 			      (2.*denom0p91accum + 4.*denom0p19accum);
 
-		std::move(muMatrix(muyy, muzz, muyz, muzy));
+		return std::move(muMatrix(muyy, muzz, muyz, muzy));
 	}
 }
 
+namespace TEMPORARY
+{
+	inline bool read_2d_file(const char filename[],
+			         std::vector<double>& x, std::vector<double>& y)
+	{
+		/*
+			x_{0}	y_{0}
+			x_{1}	y_{1}
+			  .       .
+			  .       .
+			  .       .
+			x_{n-1}	y_{n-1}
+		*/
+
+		std::list<double> tempListx;
+		std::list<double> tempListy;
+
+		std::ifstream infile(filename);
+
+		if(!infile.is_open()) {
+			return false;
+		}
+
+		while(true)
+		{
+			double tempx, tempy;
+			infile >> tempx;
+			infile >> tempy;
+
+			if(infile.eof()) {
+				break;
+			}
+			tempListx.push_back(tempx);
+			tempListy.push_back(tempy);
+		}
+
+		infile.close();
+
+		assert(tempListx.size() == tempListy.size());
+
+		const int N = tempListx.size();
+
+		if(N != x.size()) {
+			std::vector<double>(N).swap(x);
+		}
+		if(N != y.size()) {
+			std::vector<double>(N).swap(y);
+		}
+
+		int i = 0;
+		for(auto const& temp: tempListx)
+		{
+			x[i] = temp;
+			i += 1;
+		}
+
+		int j = 0;
+		for(auto const& temp: tempListy)
+		{
+			y[j] = temp;
+			j += 1;
+		}
+
+		return true;
+	}
+}
 
 int main(int argc, char* argv[])
 {
+	std::vector<double> Esub0p91, Esub0p19;
+
+	TEMPORARY::read_2d_file("e-0p91-0p19.dat", Esub0p91, Esub0p19);
+
+	auto M = KuboGreenwood::mobility(Esub0p91, Esub0p19);
+
+	std::cout << "muyy : " << M.muyy << std::endl
+		  << "muyz : " << M.muyz << std::endl
+		  << "muzz : " << M.muzz << std::endl
+		  << "muzy : " << M.muzy << std::endl;
+
 	return 0;
 }
