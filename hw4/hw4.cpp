@@ -407,11 +407,14 @@ int main(int argc, char* argv[])
 	ROOT_FINDING::newton_method(poissonEq, phi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 100, 1e-6);
 
 	std::ofstream wfile("x-phi.dat");
-	wfile << x[0] << "\t" << phi0[0]*KbT << "\n";
+	//wfile << x[0] << "\t" << phi0[0]*KbT << "\n";
+	wfile << x[0] << "\t" << phi0[0] << "\n";
 	for(int i=0; i<Ndim; ++i) {
-		wfile << x[i+1] << "\t" << phi[i]*KbT << "\n";
+		//wfile << x[i+1] << "\t" << phi[i]*KbT << "\n";
+		wfile << x[i+1] << "\t" << phi[i] << "\n";
 	}
-	wfile << x[Ndim+1] << "\t" << phi0[1]*KbT << "\n";
+	//wfile << x[Ndim+1] << "\t" << phi0[1]*KbT << "\n";
+	wfile << x[Ndim+1] << "\t" << phi0[1] << "\n";
 	wfile.close();
 
 	constexpr double n_i = 1.5e10; // carrier density for the intrinsic silicon [cm^-3]
