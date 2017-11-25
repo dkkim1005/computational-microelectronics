@@ -8,8 +8,8 @@
 #include <iomanip>
 #include <complex>
 
-#define BERNOLLI_FUNCTION_POLE_ROUND 1e-30
-#define JACOBIAN_NUMERIC_PRECISION_BOUND 1e-15
+#define BERNOLLI_FUNCTION_POLE_ROUND 1e-15
+#define JACOBIAN_NUMERIC_PRECISION_BOUND 1e-5
 
 namespace LINALG
 {
@@ -82,6 +82,9 @@ namespace SPARSE_SOLVER
 				{
 					std::cout<< "!Error : SPARSE_SOLVER::EIGEN::LUdecompSolver"
 						 << std::endl;
+
+					std::cout << A << std::endl;
+
 					assert(false);
 				}
 
@@ -266,22 +269,99 @@ private:
 template<class PermittivityObj>
 void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
 {
-	const double h = JACOBIAN_NUMERIC_PRECISION_BOUND/2.;
-        denseVector root_pdh(root), root_mdh(root);
-
-        for(int i=0; i<_Ndim; ++i)
+        for(int n=3; n<_Ndim-3; ++n)
         {
-        	for(int j=0; j<_Ndim; ++j)
-                {
-                	root_pdh[j] += h;
-                        root_mdh[j] -= h;
+		const int i = n/3;
+		const int j = n - 3*i;
 
-                        _J.coeffRef(i, j) = (_residual(root_pdh, i) - _residual(root_mdh, i))/(2.*h);
+		const double &x_ip1 = _x[i+2], &x_i = _x[i+1], &x_im1 = _x[i];
 
-                        root_pdh[j] -= h;
-                        root_mdh[j] += h;
-                }
+		switch(j)
+		{
+			case 0 :
+				_J.coeffRef(n, n-3  -j) = ; // dF/dpsi_im1
+				_J.coeffRef(n, n+0  -j) = ; // dF/dpsi_i
+				_J.coeffRef(n, n+3  -j) = ; // dF/dpsi_ip1
+
+				_J.coeffRef(n, n+1  -j) = ; // dF/dn_i
+
+				_J.coeffRef(n, n+2  -j) = ; // dF/dp_i
+
+				break;
+			case 1:
+				_J.coeffRef(n, n-3  -j) = ; // dF/dpsi_im1
+				_J.coeffRef(n, n+0  -j) = ; // dF/dpsi_i
+				_J.coeffRef(n, n+3  -j) = ; // dF/dpsi_ip1
+
+				_J.coeffRef(n, n-2  -j) = ; // dF/dn_im1
+				_J.coeffRef(n, n+1  -j) = ; // dF/dn_i
+				_J.coeffRef(n, n+4  -j) = ; // dF/dn_ip1
+
+				break;
+			case 2:
+				_J.coeffRef(n, n-3  -j) = ; // dF/dpsi_im1
+				_J.coeffRef(n, n+0  -j) = ; // dF/dpsi_i
+				_J.coeffRef(n, n+3  -j) = ; // dF/dpsi_ip1
+
+				_J.coeffRef(n, n-1  -j) = ; // dF/dp_im1
+				_J.coeffRef(n, n+2  -j) = ; // dF/dp_i
+				_J.coeffRef(n, n+5  -j) = ; // dF/dp_ip1
+
+				break;
+		}
 	}
+
+	// At the x[1]
+
+	_J.coeffRef(0, 0) = ; // dF/dpsi_i
+	_J.coeffRef(0, 3) = ; // dF/dpsi_ip1
+
+	_J.coeffRef(0, 1) = ; // dF/dn_i
+
+	_J.coeffRef(0, 2) = ; // dF/dp_i
+
+	// ---------------------------------
+
+	_J.coeffRef(1, 0) = ; // dF/dpsi_i
+	_J.coeffRef(1, 3) = ; // dF/dpsi_ip1
+
+	_J.coeffRef(1, 1) = ; // dF/dn_i
+	_J.coeffRef(1, 4) = ; // dF/dn_ip1
+
+	// ---------------------------------
+
+	_J.coeffRef(2, 0) = ; // dF/dpsi_i
+	_J.coeffRef(2, 3) = ; // dF/dpsi_ip1
+
+	_J.coeffRef(2, 2) = ; // dF/dp_i
+	_J.coeffRef(2, 5) = ; // dF/dp_ip1
+
+
+	// At the x[-2]
+
+	_J.coeffRef(_Ndim-3, _Ndim-3 -3) = ; // dF/dpsi_im1
+	_J.coeffRef(_Ndim-3, _Ndim-3) = ; // dF/dpsi_i
+
+	_J.coeffRef(_Ndim-3, _Ndim-3 +1) = ; // dF/dn_i
+
+	_J.coeffRef(_Ndim-3, _Ndim-3 +2) = ; // dF/dp_i
+
+	// ---------------------------------
+
+	_J.coeffRef(_Ndim-2, _Ndim-3 -3) = ; // dF/dpsi_im1
+	_J.coeffRef(_Ndim-2, _Ndim-3) = ; // dF/dpsi_i
+
+	_J.coeffRef(_Ndim-2, _Ndim-3 -2) = ; // dF/dn_im1
+	_J.coeffRef(_Ndim-2, _Ndim-3 +1) = ; // dF/dn_i
+
+	// ---------------------------------
+
+	_J.coeffRef(_Ndim-1, _Ndim-3 -3) = ; // dF/dpsi_im1
+	_J.coeffRef(_Ndim-1, _Ndim-3) = ; // dF/dpsi_i
+
+	_J.coeffRef(_Ndim-1, _Ndim-3 -1) = ; // dF/dp_im1
+	_J.coeffRef(_Ndim-1, _Ndim-3 +2) = ; // dF/dp_i
+
 
 	_J.makeCompressed();
 }
@@ -362,7 +442,7 @@ double DriftDifussionEquation<PermittivityObj>::_residual(const denseVector& roo
 		case 0 :
 			result = -_epsf((x_ip1+x_i)/2.)*(psi_ip1 - psi_i)/(x_ip1-x_i) +
 		  	_epsf((x_i+x_im1)/2.)*(psi_i - psi_im1)/(x_i-x_im1) +
-	 	  	std::pow(_scale, 2)*_coeff*((std::exp(psi_i) - std::exp(-psi_i)) - _dopping[i])*(x_i - x_im1);
+	 	  	std::pow(_scale, 2)*_coeff*(n_i - p_i - _dopping[i])*(x_i - x_im1);
 			break;
 
 	    	// <equilibrium current equation for the electrons>
@@ -405,7 +485,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Nx = 1001;
+	constexpr int Nx = 5;
 	constexpr double Tsi = 2.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
@@ -447,7 +527,7 @@ int main(int argc, char* argv[])
 	}
 
 	DriftDifussionEquation<permittivityForSilicon> DDEq(3*(Nx-2), dopping, x, bound, scale);
-	denseVector root(3*(Nx-2));
+	denseVector root(3*(Nx-2)), residue(3*(Nx-2));
 
 	std::ifstream rfile(argv[1]);
 
@@ -471,15 +551,22 @@ int main(int argc, char* argv[])
 		std::cout << "  --default initial root: linear line for x(root(x) = ax + b)"
 			  << std::endl;
 		for(int i=0; i<(Nx-2); ++i) {
-			root[3*i + 0] = bound[0] + (bound[3] - bound[0])/(Nx - 1)*(i+1);
-			root[3*i + 1] = bound[1] + (bound[4] - bound[1])/(Nx - 1)*(i+1);
-			root[3*i + 2] = bound[2] + (bound[5] - bound[2])/(Nx - 1)*(i+1);
+			root[3*i + 0] = bound[0] + (bound[3] - bound[0])*std::pow(1./(Nx - 1)*(i+1), 2);
+			root[3*i + 1] = bound[1] + (bound[4] - bound[1])*std::pow(1./(Nx - 1)*(i+1), 2);
+			root[3*i + 2] = bound[2] + (bound[5] - bound[2])*std::pow(1./(Nx - 1)*(i+1), 2);
 		}
 	}
 
 	rfile.close();
 
-	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 1000, 1e-10);
+	/*
+	DDEq.jacobian(root);
+	auto J = DDEq.get_J();
+	std::cout << J << std::endl;
+	*/
+
+	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 1000, 1e-3);
+
 
 	/*
 	std::ofstream wfile(("x-qphi-" + std::string(argv[1]) + ".dat").c_str());
