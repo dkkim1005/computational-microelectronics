@@ -9,7 +9,7 @@
 #include <complex>
 
 #define BERNOLLI_FUNCTION_POLE_ROUND 1e-15
-#define JACOBIAN_NUMERIC_PRECISION_BOUND 1e-5
+#define JACOBIAN_NUMERIC_PRECISION_BOUND 1e-6
 
 namespace LINALG
 {
@@ -265,6 +265,27 @@ private:
 	const PermittivityObj _epsf;  // relative permittivity
 };
 
+/*
+template<class PermittivityObj>
+void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
+{
+	const double h = JACOBIAN_NUMERIC_PRECISION_BOUND;
+	denseVector xmh(root), xph(root);
+
+	for(int i=0; i<_Ndim; ++i)
+	{
+		for(int j=0; j<_Ndim; ++j) {
+			xmh[j] -= h;
+			xph[j] += h;
+			_J.coeffRef(i, j) = (_residual(xph, i) - _residual(xmh, i))/(2.*h);
+			xmh[j] += h;
+			xph[j] -= h;
+		}
+	}
+
+	_J.makeCompressed();
+}
+*/
 
 template<class PermittivityObj>
 void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
@@ -366,6 +387,7 @@ void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
 	_J.makeCompressed();
 }
 
+
 template<class PermittivityObj>
 double DriftDifussionEquation<PermittivityObj>::_residual(const denseVector& root, const int& n) const
 {
@@ -382,7 +404,7 @@ double DriftDifussionEquation<PermittivityObj>::_residual(const denseVector& roo
 	*/
 
 	// n = 3*i + j
-	const int i = n/3;	//(i = 0, 1, .. _Ndim/3)
+	const int i = n/3;	//(i = 0, 1, .. (_Ndim-1)/3)
 	const int j = n - 3*i;	//(j = 0, 1, 2)
 
 	double result,			// F_i,j
@@ -407,7 +429,7 @@ double DriftDifussionEquation<PermittivityObj>::_residual(const denseVector& roo
 		p_im1 = _bound[2]; // boundary condition
 
 	}
-	else if(i == _Ndim/3-1)
+	else if(i == (_Ndim-1)/3)
 	{
 		psi_ip1 = _bound[3]; // boundary condition
 		psi_i   = root[3*i + 0];
@@ -485,7 +507,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-	constexpr int Nx = 5;
+	constexpr int Nx = 7;
 	constexpr double Tsi = 2.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
