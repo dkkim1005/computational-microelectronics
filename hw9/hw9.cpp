@@ -7,9 +7,15 @@
 #include <fstream>
 #include <iomanip>
 #include <complex>
+#include <cstdlib>
 
-#define BERNOLLI_FUNCTION_POLE_ROUND 1e-15
-#define JACOBIAN_NUMERIC_PRECISION_BOUND 1e-6
+#define BERNOLLI_FUNCTION_POLE_ROUND 1e-10
+
+//#define USE_NUMERIC_JACOBIAN 
+
+#ifdef USE_NUMERIC_JACOBIAN
+#define JACOBIAN_2WIDTH 1e-5
+#endif
 
 namespace LINALG
 {
@@ -83,7 +89,7 @@ namespace SPARSE_SOLVER
 					std::cout<< "!Error : SPARSE_SOLVER::EIGEN::LUdecompSolver"
 						 << std::endl;
 
-					std::cout << A << std::endl;
+					//std::cout << A << std::endl;
 
 					assert(false);
 				}
@@ -248,6 +254,25 @@ public:
 private:
 	virtual double _residual(const denseVector& psi, const int& i) const;
 
+	struct _variables
+	{
+		double &psi_im1, &psi_i, &psi_ip1,
+		         &n_im1,   &n_i,   &n_ip1,
+                         &p_im1,   &p_i,   &p_ip1,
+                         &x_ip1,   &x_i,   &x_im1;
+
+		_variables(double& psi_im1_, double& psi_i_, double& psi_ip1_,
+		           double& n_im1_,   double& n_i_,   double& n_ip1_,
+                           double& p_im1_,   double& p_i_,   double& p_ip1_,
+                           double& x_ip1_,   double& x_i_,   double& x_im1_)
+		: psi_im1(psi_im1_), psi_i(psi_i_), psi_ip1(psi_ip1_),
+		    n_im1(n_im1_),     n_i(n_i_),     n_ip1(n_ip1_),
+                    p_im1(p_im1_),     p_i(p_i_),     p_ip1(p_ip1_),
+                    x_ip1(x_ip1_),     x_i(x_i_),     x_im1(x_im1_) {}
+	};
+
+	void _index_rules(_variables& set, const denseVector& psi, const int& i) const;
+
 	sparseMatrix _J;
 	/*
 	    _coeff : q0^2 * n_i/(eps0 * KbT) [1/micrometer^2]
@@ -260,24 +285,27 @@ private:
 	const double _scale;	      // [x] = _scale[micrometer]
 	std::vector<double> _dopping; // ratio: N+/n_i where N+ is dopping density
 	std::vector<double> _x;       // [micrometer]
-	// psi := q*phi/KbT
-	std::vector<double> _bound;    // boundary conditions at _x[0] and _x[_Ndim-1]
+	std::vector<double> _bound;   // boundary conditions at _x[0] and _x[_Ndim-1]
 	const PermittivityObj _epsf;  // relative permittivity
 };
 
-/*
+
+#ifdef USE_NUMERIC_JACOBIAN
 template<class PermittivityObj>
 void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
 {
-	const double h = JACOBIAN_NUMERIC_PRECISION_BOUND;
+	const double h = JACOBIAN_2WIDTH;
 	denseVector xmh(root), xph(root);
 
 	for(int i=0; i<_Ndim; ++i)
 	{
-		for(int j=0; j<_Ndim; ++j) {
+		for(int j=0; j<_Ndim; ++j)
+		{
 			xmh[j] -= h;
 			xph[j] += h;
+
 			_J.coeffRef(i, j) = (_residual(xph, i) - _residual(xmh, i))/(2.*h);
+
 			xmh[j] += h;
 			xph[j] -= h;
 		}
@@ -285,107 +313,130 @@ void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
 
 	_J.makeCompressed();
 }
-*/
 
+
+#else
 template<class PermittivityObj>
 void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
 {
+	double psi_ip1, psi_i, psi_im1, // psi
+	       n_ip1, n_i, n_im1,	// n
+	       p_ip1, p_i, p_im1,	// p
+       	       x_ip1, x_i, x_im1;       // x
+
+	_variables set(psi_im1, psi_i, psi_ip1,
+		         n_im1,   n_i,   n_ip1,
+           		 p_im1,   p_i,   p_ip1,
+			 x_ip1,   x_i,   x_im1);
+
         for(int n=3; n<_Ndim-3; ++n)
         {
 		const int i = n/3;
 		const int j = n - 3*i;
 
-		const double &x_ip1 = _x[i+2], &x_i = _x[i+1], &x_im1 = _x[i];
+		_index_rules(set, root, i);
 
 		switch(j)
 		{
 			case 0 :
-				_J.coeffRef(n, n-3  -j) = ; // dF/dpsi_im1
-				_J.coeffRef(n, n+0  -j) = ; // dF/dpsi_i
-				_J.coeffRef(n, n+3  -j) = ; // dF/dpsi_ip1
+				_J.coeffRef(n, n-3  -j) = -_epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_im1
+				_J.coeffRef(n, n+0  -j) =  _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) +
+							   _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_i
+				_J.coeffRef(n, n+3  -j) = -_epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i); // dF/dpsi_ip1
 
-				_J.coeffRef(n, n+1  -j) = ; // dF/dn_i
+				_J.coeffRef(n, n+1  -j) =  std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dn_i
 
-				_J.coeffRef(n, n+2  -j) = ; // dF/dp_i
+				_J.coeffRef(n, n+2  -j) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dp_i
 
 				break;
 			case 1:
-				_J.coeffRef(n, n-3  -j) = ; // dF/dpsi_im1
-				_J.coeffRef(n, n+0  -j) = ; // dF/dpsi_i
-				_J.coeffRef(n, n+3  -j) = ; // dF/dpsi_ip1
+				_J.coeffRef(n, n-3  -j) =  1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_im1
+				_J.coeffRef(n, n+0  -j) = -1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i))
+							  -1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_i
+				_J.coeffRef(n, n+3  -j) =  1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i)); // dF/dpsi_ip1
 
-				_J.coeffRef(n, n-2  -j) = ; // dF/dn_im1
-				_J.coeffRef(n, n+1  -j) = ; // dF/dn_i
-				_J.coeffRef(n, n+4  -j) = ; // dF/dn_ip1
+				_J.coeffRef(n, n-2  -j) =  1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dn_im1
+				_J.coeffRef(n, n+1  -j) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dn_i
+				_J.coeffRef(n, n+4  -j) =  1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i); // dF/dn_ip1
 
 				break;
 			case 2:
-				_J.coeffRef(n, n-3  -j) = ; // dF/dpsi_im1
-				_J.coeffRef(n, n+0  -j) = ; // dF/dpsi_i
-				_J.coeffRef(n, n+3  -j) = ; // dF/dpsi_ip1
+				_J.coeffRef(n, n-3  -j) = 1./(x_i - x_im1)*(-p_i*BERNOULLI::df(-psi_i + psi_im1) - p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_im1
+				_J.coeffRef(n, n+0  -j) = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) + p_i*BERNOULLI::df(psi_ip1 - psi_i)) +
+							  1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_i
+				_J.coeffRef(n, n+3  -j) = 1./(x_ip1 - x_i)*(-p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) - p_i*BERNOULLI::df(psi_ip1 - psi_i)); // dF/dpsi_ip1
 
-				_J.coeffRef(n, n-1  -j) = ; // dF/dp_im1
-				_J.coeffRef(n, n+2  -j) = ; // dF/dp_i
-				_J.coeffRef(n, n+5  -j) = ; // dF/dp_ip1
+				_J.coeffRef(n, n-1  -j) = 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dp_im1
+				_J.coeffRef(n, n+2  -j) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dp_i
+				_J.coeffRef(n, n+5  -j) = 1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i); // dF/dp_ip1
 
 				break;
 		}
 	}
 
 	// At the x[1]
+	_index_rules(set, root, 0);
 
-	_J.coeffRef(0, 0) = ; // dF/dpsi_i
-	_J.coeffRef(0, 3) = ; // dF/dpsi_ip1
+	_J.coeffRef(0, 0) =  _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) + _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_i
+	_J.coeffRef(0, 3) = -_epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i); // dF/dpsi_ip1
 
-	_J.coeffRef(0, 1) = ; // dF/dn_i
+	_J.coeffRef(0, 1) =  std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dn_i
 
-	_J.coeffRef(0, 2) = ; // dF/dp_i
-
-	// ---------------------------------
-
-	_J.coeffRef(1, 0) = ; // dF/dpsi_i
-	_J.coeffRef(1, 3) = ; // dF/dpsi_ip1
-
-	_J.coeffRef(1, 1) = ; // dF/dn_i
-	_J.coeffRef(1, 4) = ; // dF/dn_ip1
+	_J.coeffRef(0, 2) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dp_i
 
 	// ---------------------------------
 
-	_J.coeffRef(2, 0) = ; // dF/dpsi_i
-	_J.coeffRef(2, 3) = ; // dF/dpsi_ip1
+	_J.coeffRef(1, 0) = -1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i))
+			    -1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_i
 
-	_J.coeffRef(2, 2) = ; // dF/dp_i
-	_J.coeffRef(2, 5) = ; // dF/dp_ip1
+	_J.coeffRef(1, 3) = 1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i)); // dF/dpsi_ip1
+
+	_J.coeffRef(1, 1) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dn_i
+	_J.coeffRef(1, 4) = 1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i); // dF/dn_ip1
+
+	// ---------------------------------
+
+	_J.coeffRef(2, 0) = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) + p_i*BERNOULLI::df(psi_ip1 - psi_i)) +
+			    1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_i
+	_J.coeffRef(2, 3) = 1./(x_ip1 - x_i)*(-p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) - p_i*BERNOULLI::df(psi_ip1 - psi_i)); // dF/dpsi_ip1
+
+	_J.coeffRef(2, 2) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dp_i
+	_J.coeffRef(2, 5) = 1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i); // dF/dp_ip1
+
 
 
 	// At the x[-2]
+	_index_rules(set, root, _Ndim/3-1);
 
-	_J.coeffRef(_Ndim-3, _Ndim-3 -3) = ; // dF/dpsi_im1
-	_J.coeffRef(_Ndim-3, _Ndim-3) = ; // dF/dpsi_i
+	_J.coeffRef(_Ndim-3, _Ndim-3 -3) = -_epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_im1
+	_J.coeffRef(_Ndim-3, _Ndim-3) = _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) + _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_i
 
-	_J.coeffRef(_Ndim-3, _Ndim-3 +1) = ; // dF/dn_i
+	_J.coeffRef(_Ndim-3, _Ndim-3 +1) = std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dn_i
 
-	_J.coeffRef(_Ndim-3, _Ndim-3 +2) = ; // dF/dp_i
-
-	// ---------------------------------
-
-	_J.coeffRef(_Ndim-2, _Ndim-3 -3) = ; // dF/dpsi_im1
-	_J.coeffRef(_Ndim-2, _Ndim-3) = ; // dF/dpsi_i
-
-	_J.coeffRef(_Ndim-2, _Ndim-3 -2) = ; // dF/dn_im1
-	_J.coeffRef(_Ndim-2, _Ndim-3 +1) = ; // dF/dn_i
+	_J.coeffRef(_Ndim-3, _Ndim-3 +2) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dp_i
 
 	// ---------------------------------
 
-	_J.coeffRef(_Ndim-1, _Ndim-3 -3) = ; // dF/dpsi_im1
-	_J.coeffRef(_Ndim-1, _Ndim-3) = ; // dF/dpsi_i
+	_J.coeffRef(_Ndim-2, _Ndim-3 -3) = 1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_im1
+	_J.coeffRef(_Ndim-2, _Ndim-3) = -1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i))
+					-1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_i
 
-	_J.coeffRef(_Ndim-1, _Ndim-3 -1) = ; // dF/dp_im1
-	_J.coeffRef(_Ndim-1, _Ndim-3 +2) = ; // dF/dp_i
+	_J.coeffRef(_Ndim-2, _Ndim-3 -2) = 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dn_im1
+	_J.coeffRef(_Ndim-2, _Ndim-3 +1) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dn_i
+
+	// ---------------------------------
+
+	_J.coeffRef(_Ndim-1, _Ndim-3 -3) = 1./(x_i - x_im1)*(-p_i*BERNOULLI::df(-psi_i + psi_im1) - p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_im1
+	_J.coeffRef(_Ndim-1, _Ndim-3) = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) + p_i*BERNOULLI::df(psi_ip1 - psi_i)) +
+					1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_i
+
+	_J.coeffRef(_Ndim-1, _Ndim-3 -1) = 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dp_im1
+	_J.coeffRef(_Ndim-1, _Ndim-3 +2) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dp_i
 
 
 	_J.makeCompressed();
 }
+#endif
 
 
 template<class PermittivityObj>
@@ -410,53 +461,15 @@ double DriftDifussionEquation<PermittivityObj>::_residual(const denseVector& roo
 	double result,			// F_i,j
 	       psi_ip1, psi_i, psi_im1, // psi
 	       n_ip1, n_i, n_im1,	// n
-	       p_ip1, p_i, p_im1;	// p
+	       p_ip1, p_i, p_im1,	// p
+               x_ip1, x_i, x_im1;       // x
 
-	const double &x_ip1 = _x[i+2], &x_i = _x[i+1], &x_im1 = _x[i];
+	_variables set(psi_im1, psi_i, psi_ip1,
+		         n_im1,   n_i,   n_ip1,
+                         p_im1,   p_i,   p_ip1,
+                         x_ip1,   x_i,   x_im1);
 
-	if(i == 0)
-	{
-		psi_ip1 = root[3*1 + 0];
-		psi_i   = root[3*0 + 0];
-		psi_im1 = _bound[0]; // boundary condition
-
-		n_ip1 = root[3*1 + 1];
-		n_i   = root[3*0 + 1];
-		n_im1 = _bound[1]; // boundary condition
-
-		p_ip1 = root[3*1 + 2];
-		p_i   = root[3*0 + 2];
-		p_im1 = _bound[2]; // boundary condition
-
-	}
-	else if(i == (_Ndim-1)/3)
-	{
-		psi_ip1 = _bound[3]; // boundary condition
-		psi_i   = root[3*i + 0];
-		psi_im1 = root[3*(i-1) + 0];
-
-		n_ip1 = _bound[4]; // boundary condition
-		n_i   = root[3*i + 1];
-		n_im1 = root[3*(i-1) + 1];
-
-		p_ip1 = _bound[5]; // boundary condition
-		p_i   = root[3*i + 2];
-		p_im1 = root[3*(i-1) + 2];
-	}
-	else
-	{
-		psi_ip1 = root[3*(i+1) + 0];
-		psi_i   = root[3*i + 0];
-		psi_im1 = root[3*(i-1) + 0];
-
-		n_ip1 = root[3*(i+1) + 1];
-		n_i   = root[3*i + 1];
-		n_im1 = root[3*(i-1) + 1];
-
-		p_ip1 = root[3*(i+1) + 2];
-		p_i   = root[3*i + 2];
-		p_im1 = root[3*(i-1) + 2];
-	}
+	_index_rules(set, root, i);
 
 	switch(j)
 	{
@@ -477,10 +490,10 @@ double DriftDifussionEquation<PermittivityObj>::_residual(const denseVector& roo
 
 		// <equilibrium current equation for the holes>
 		case 2 :
-			result = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::f( psi_ip1 - psi_i)
-						   - p_i*BERNOULLI::f(-psi_ip1 + psi_i))
-				-1./(x_i - x_im1)*(  p_i*BERNOULLI::f( psi_i - psi_im1)
-						 - p_im1*BERNOULLI::f(-psi_i + psi_im1));
+			result = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::f(-psi_ip1 + psi_i)
+						   - p_i*BERNOULLI::f(psi_ip1 - psi_i))
+				-1./(x_i - x_im1)*(  p_i*BERNOULLI::f(-psi_i + psi_im1)
+						 - p_im1*BERNOULLI::f(psi_i - psi_im1));
 			break;
 		default:
 			std::cout << "  -- Error! j is only in the boundary where |j| < 3." << std::endl;
@@ -488,6 +501,76 @@ double DriftDifussionEquation<PermittivityObj>::_residual(const denseVector& roo
 	}
 
 	return result;
+}
+
+
+template<class PermittivityObj>
+void DriftDifussionEquation<PermittivityObj>::_index_rules(_variables& set, const denseVector& root, const int& i) const
+{
+	double  psi_ip1 = 0, psi_i = 0, psi_im1 = 0, // psi
+                n_ip1   = 0,   n_i = 0,   n_im1 = 0, // n 
+		p_ip1   = 0,   p_i = 0,   p_im1 = 0, // p 
+                x_ip1   = _x[i+2], x_i = _x[i+1], x_im1 = _x[i];
+
+        if(i == 0)
+        {
+                psi_ip1 = root[3*1 + 0]; 
+                psi_i   = root[3*0 + 0]; 
+                psi_im1 = _bound[0]; // boundary condition
+
+                n_ip1 = root[3*1 + 1]; 
+                n_i   = root[3*0 + 1]; 
+                n_im1 = _bound[1]; // boundary condition
+
+                p_ip1 = root[3*1 + 2]; 
+                p_i   = root[3*0 + 2]; 
+                p_im1 = _bound[2]; // boundary condition
+
+        }
+        else if(i == (_Ndim-1)/3)
+        {
+                psi_ip1 = _bound[3]; // boundary condition
+                psi_i   = root[3*i + 0]; 
+                psi_im1 = root[3*(i-1) + 0]; 
+
+                n_ip1 = _bound[4]; // boundary condition
+                n_i   = root[3*i + 1]; 
+                n_im1 = root[3*(i-1) + 1]; 
+
+                p_ip1 = _bound[5]; // boundary condition
+                p_i   = root[3*i + 2]; 
+                p_im1 = root[3*(i-1) + 2]; 
+        }
+        else
+        {
+                psi_ip1 = root[3*(i+1) + 0]; 
+                psi_i   = root[3*i + 0]; 
+                psi_im1 = root[3*(i-1) + 0]; 
+
+                n_ip1 = root[3*(i+1) + 1]; 
+                n_i   = root[3*i + 1]; 
+                n_im1 = root[3*(i-1) + 1]; 
+
+                p_ip1 = root[3*(i+1) + 2]; 
+                p_i   = root[3*i + 2]; 
+                p_im1 = root[3*(i-1) + 2]; 
+        }
+
+	set.psi_im1 = psi_im1;
+	set.psi_i   = psi_i;
+	set.psi_ip1 = psi_ip1;
+
+	set.n_im1   = n_im1;
+	set.n_i     = n_i;
+	set.n_ip1   = n_ip1;
+
+        set.p_im1   = p_im1;
+	set.p_i     = p_i;
+	set.p_ip1   = p_ip1;
+
+	set.x_ip1   = x_ip1;
+	set.x_i     = x_i;
+	set.x_im1   = x_im1;
 }
 
 
@@ -504,15 +587,49 @@ public:
 };
 
 
+/*
+namespace
+{
+	struct read_environment
+	{
+		void read(const char filename[])
+		{
+			std::cout << " --- read file: "<< filename << std::endl;
+			std::ifstream rfile(filename);
+			if(!rfile.is_open())
+			{
+				std::cout << "  Error : there is no object file to read in the current directory!" << std::endl;
+				std::abort();
+			}
+
+			rfile >> Nx;
+			rfile >> Tsi;
+			rfile >> scale;
+
+			x = std::vector<double>(Nx);
+
+			for(int i=0; i<Nx; ++i) {
+				x[i] = Tsi/(Nx - 1)*i;
+			}
+
+		}
+
+		std::vector<double> bound, x, Nplus;
+		double Nx, Tsi, scale;
+	};
+}
+*/
+
 
 int main(int argc, char* argv[])
 {
-	constexpr int Nx = 7;
-	constexpr double Tsi = 2.; // [scale * micrometer]
+	constexpr int Nx = 501;
+	constexpr double Tsi = 1.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
 	constexpr double KbT_J = 300*1.3806488e-23; //(J)
 	constexpr double q0 = 1.6021766208e-19; // (C)
+	const double scale = 1.;
 
 	dvector dopping(Nx-2, 1e6/1.5), bound(6, 0);
         for(int i=0; i<dopping.size()/2; ++i) {
@@ -523,24 +640,13 @@ int main(int argc, char* argv[])
 
 	// at the x[0]
 	bound[0] = -13.41;// psi := q*phi/KbT
-	bound[1] = 1e16/(1.5*1e10); //   n := n/n_i (n_i : intrinsic density of the silicon)
-	bound[2] = 22500/(1.5*1e10); //   p := p/p_i (p_i : intrinsic density of the silicon)
+	bound[1] = 22500/(1.5*1e10);  //   n := n/n_i (n_i : intrinsic density of the silicon)
+	bound[2] = 1e+16/(1.5*1e10); //   p := p/n_i
 
 	// at the x[-1]
 	bound[3] = 13.41; // psi := q*phi/KbT
-	bound[4] = 22500/(1.5*1e10); //   n := n/n_i (n_i : intrinsic density of the silicon)
-	bound[5] = 1e16/(1.5*1e10); //   p := p/p_i (p_i : intrinsic density of the silicon)
-
-	const double scale = 1.;
-
-	/*
-	if(argc == 1)
-	{
-		std::cout<<"  -- options \n"
-			 <<"       argv[1]: file to read initial phi (optional)\n";
-		return -1;
-	}
-	*/
+	bound[4] = 1e16/(1.5*1e10); //   n := n/n_i 
+	bound[5] = 22500/(1.5*1e10);  //   p := p/p_i 
 
 	dvector x(Nx, 0);
 
@@ -562,10 +668,12 @@ int main(int argc, char* argv[])
 		rfile >> temp; rfile >> temp; // read x0 and root0,1
 		rfile >> temp; rfile >> temp; // read x0 and root0,2
 
-		for(int i=0; i<3*(Nx-2); ++i) 
+		for(int i=0; i<(Nx-2); ++i) 
 		{
 			rfile >> temp;   // read x
-			rfile >> root[i]; // read root [dimensionless]
+			rfile >> root[3*i];   // read psi (q*psi/KbT)
+			rfile >> root[3*i+1]; // read n   (n/n_i)
+			rfile >> root[3*i+2]; // read p   (p/p_i)
 		}
 	}
 	else
@@ -573,57 +681,50 @@ int main(int argc, char* argv[])
 		std::cout << "  --default initial root: linear line for x(root(x) = ax + b)"
 			  << std::endl;
 		for(int i=0; i<(Nx-2); ++i) {
-			root[3*i + 0] = bound[0] + (bound[3] - bound[0])*std::pow(1./(Nx - 1)*(i+1), 2);
-			root[3*i + 1] = bound[1] + (bound[4] - bound[1])*std::pow(1./(Nx - 1)*(i+1), 2);
-			root[3*i + 2] = bound[2] + (bound[5] - bound[2])*std::pow(1./(Nx - 1)*(i+1), 2);
+			root[3*i + 0] = bound[0] + (bound[3] - bound[0])*std::pow(1./(Nx - 1)*(i+1), 1);
+			root[3*i + 1] = bound[1] + (bound[4] - bound[1])*std::pow(1./(Nx - 1)*(i+1), 1);
+			root[3*i + 2] = bound[2] + (bound[5] - bound[2])*std::pow(1./(Nx - 1)*(i+1), 1);
 		}
 	}
 
 	rfile.close();
 
-	/*
-	DDEq.jacobian(root);
-	auto J = DDEq.get_J();
-	std::cout << J << std::endl;
-	*/
+	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 1000, 1e-2);
 
-	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 1000, 1e-3);
-
-
-	/*
-	std::ofstream wfile(("x-qphi-" + std::string(argv[1]) + ".dat").c_str());
-	wfile << x[0] << "\t" << std::setprecision(15) << psi0[0]*KbT << "\n";
+	std::ofstream wfile("result.dat");
+	wfile << x[0] << "\t" << bound[0] << "\t" << bound[1] << "\t" << bound[2] << std::endl;
 	for(int i=0; i<Nx-2; ++i) {
-		wfile << x[i+1] << "\t" << psi[i]*KbT << "\n";
+		wfile << x[i+1] << "\t" << root[3*i] << "\t" << root[3*i+1] << "\t" << root[3*i+2] << std::endl;
 	}
-	wfile << x[Nx-1] << "\t" << psi0[1]*KbT << "\n";
+	wfile << x[Nx-1] << "\t" << bound[3] << "\t" << bound[4] << "\t" << bound[5] << std::endl;
+
 	wfile.close();
 
-	auto holeDensity = [&n_i](const double psi) -> double {
-					return n_i*std::exp(-psi);
-				};
-
-	auto elecDensity = [&n_i](const double psi) -> double {
-					return n_i*std::exp(psi);
-				};
-
-
-	wfile.open("x-hole-" + std::string(argv[1]) + ".dat");
-	wfile << x[0] << "\t" << holeDensity(psi0[0]) << "\n";
+/*
+	std::ofstream wfile("x-qphi.dat");
+	wfile << x[0] << "\t" << std::setprecision(15) << bound[0]*KbT << "\n";
 	for(int i=0; i<Nx-2; ++i) {
-		wfile << x[i+1] << "\t" << holeDensity(psi[i]) << "\n";
+		wfile << x[i+1] << "\t" << root[3*i]*KbT << "\n";
 	}
-	wfile << x[Nx-1] << "\t" << holeDensity(psi0[1]) << "\n";
+	wfile << x[Nx-1] << "\t" << bound[3]*KbT << "\n";
 	wfile.close();
 
-	wfile.open("x-elec-" + std::string(argv[1]) + ".dat");
-	wfile << x[0] << "\t" << elecDensity(psi0[0]) << "\n";
+	wfile.open("x-hole.dat");
+	wfile << x[0] << "\t" << bound[2] << "\n";
 	for(int i=0; i<Nx-2; ++i) {
-		wfile << x[i+1] << "\t" << elecDensity(psi[i]) << "\n";
+		wfile << x[i+1] << "\t" << root[3*i+2] << "\n";
 	}
-	wfile << x[Nx-1] << "\t" << elecDensity(psi0[1]) << "\n";
+	wfile << x[Nx-1] << "\t" << bound[5] << "\n";
 	wfile.close();
-	*/
+
+	wfile.open("x-elec.dat");
+	wfile << x[0] << "\t" << bound[1] << "\n";
+	for(int i=0; i<Nx-2; ++i) {
+		wfile << x[i+1] << "\t" << root[3*i+1] << "\n";
+	}
+	wfile << x[Nx-1] << "\t" << bound[4] << "\n";
+	wfile.close();
+*/
 
 	return 0;
 }

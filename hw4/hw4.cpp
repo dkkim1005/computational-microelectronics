@@ -395,7 +395,7 @@ int main(int argc, char* argv[])
 
 	// x: 0.0 to 2.0 [micrometer]
 	for(int i=0; i<Ndim+2; ++i) {
-		x[i] = 2./(Ndim + 1.)*i;
+		x[i] = 1./(Ndim + 1.)*i;
 	}
 
 	// boundary conditions
@@ -420,11 +420,11 @@ int main(int argc, char* argv[])
 	constexpr double n_i = 1.5e10; // carrier density for the intrinsic silicon [cm^-3]
 
 	auto holeDensity = [&n_i](const double phi) -> double {
-					return n_i*std::exp(phi);
+					return n_i*std::exp(-phi);
 				};
 
 	auto elecDensity = [&n_i](const double phi) -> double {
-					return n_i*std::exp(-phi);
+					return n_i*std::exp(phi);
 				};
 
 	wfile.open("x-hole.dat");
