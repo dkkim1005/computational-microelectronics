@@ -9,7 +9,7 @@
 #include <complex>
 #include <cstdlib>
 
-#define BERNOLLI_FUNCTION_POLE_ROUND 1e-10
+#define BERNOLLI_FUNCTION_POLE_ROUND 1e-30
 
 //#define USE_NUMERIC_JACOBIAN 
 
@@ -623,7 +623,7 @@ namespace
 
 int main(int argc, char* argv[])
 {
-	constexpr int Nx = 501;
+	constexpr int Nx = 503;
 	constexpr double Tsi = 1.; // [scale * micrometer]
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
@@ -639,14 +639,14 @@ int main(int argc, char* argv[])
 	// boundary condition 
 
 	// at the x[0]
-	bound[0] = -13.41;// psi := q*phi/KbT
-	bound[1] = 22500/(1.5*1e10);  //   n := n/n_i (n_i : intrinsic density of the silicon)
-	bound[2] = 1e+16/(1.5*1e10); //   p := p/n_i
+	bound[0] = -1.341000000000000014e+01;// psi := q*phi/KbT
+	bound[1] = 1.500000000000000038e-06;  //   n := n/n_i (n_i : intrinsic density of the silicon)
+	bound[2] = 6.666670000000000000e+05 ; //   p := p/n_i
 
 	// at the x[-1]
-	bound[3] = 13.41; // psi := q*phi/KbT
-	bound[4] = 1e16/(1.5*1e10); //   n := n/n_i 
-	bound[5] = 22500/(1.5*1e10);  //   p := p/p_i 
+	bound[3] = 1.341000000000000014e+01 ; // psi := q*phi/KbT
+	bound[4] = 6.666670000000000000e+05 ; //   n := n/n_i 
+	bound[5] = 1.500000000000000038e-06 ;  //   p := p/p_i 
 
 	dvector x(Nx, 0);
 
@@ -663,10 +663,8 @@ int main(int argc, char* argv[])
 	{
 		std::cout<<"  --file: "<<std::string(argv[1])<<std::endl;
 		double temp;
-		// read x0 and root0
-		rfile >> temp; rfile >> temp; // read x0 and root0,0
-		rfile >> temp; rfile >> temp; // read x0 and root0,1
-		rfile >> temp; rfile >> temp; // read x0 and root0,2
+		// read x0 and the values at the boundary x[0]
+		rfile >> temp; rfile >> temp; rfile >> temp; rfile >> temp;
 
 		for(int i=0; i<(Nx-2); ++i) 
 		{
@@ -689,14 +687,14 @@ int main(int argc, char* argv[])
 
 	rfile.close();
 
-	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 1000, 1e-2);
+	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 1000, 1e-3);
 
 	std::ofstream wfile("result.dat");
-	wfile << x[0] << "\t" << bound[0] << "\t" << bound[1] << "\t" << bound[2] << std::endl;
+	wfile << x[0] << "\t" << std::setprecision(15) << bound[0] << "\t" << bound[1] << "\t" << bound[2] << std::endl;
 	for(int i=0; i<Nx-2; ++i) {
-		wfile << x[i+1] << "\t" << root[3*i] << "\t" << root[3*i+1] << "\t" << root[3*i+2] << std::endl;
+		wfile << x[i+1] << std::setprecision(15) << "\t" << root[3*i] << "\t" << root[3*i+1] << "\t" << root[3*i+2] << std::endl;
 	}
-	wfile << x[Nx-1] << "\t" << bound[3] << "\t" << bound[4] << "\t" << bound[5] << std::endl;
+	wfile << x[Nx-1] << "\t" << std::setprecision(15) << bound[3] << "\t" << bound[4] << "\t" << bound[5] << std::endl;
 
 	wfile.close();
 

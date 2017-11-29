@@ -361,7 +361,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-	const int Ndim = 1000;
+	const int Ndim = 501;
 	const double KbT = 0.025851984732130292; //(ev)
 
 	/* dopping density: 1e16 [cm^-3]
@@ -404,7 +404,7 @@ int main(int argc, char* argv[])
 	// Poisson equation
 	PoissonEquation<permittivityForSilicon> poissonEq(Ndim, dopping, x, phi0);
 
-	ROOT_FINDING::newton_method(poissonEq, phi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 100, 1e-6);
+	ROOT_FINDING::newton_method(poissonEq, phi, SPARSE_SOLVER::EIGEN::CholeskyDecompSolver(), 100, 1e-10);
 
 	std::ofstream wfile("x-phi.dat");
 	//wfile << x[0] << "\t" << phi0[0]*KbT << "\n";
@@ -420,11 +420,11 @@ int main(int argc, char* argv[])
 	constexpr double n_i = 1.5e10; // carrier density for the intrinsic silicon [cm^-3]
 
 	auto holeDensity = [&n_i](const double phi) -> double {
-					return n_i*std::exp(-phi);
+					return std::exp(-phi);
 				};
 
 	auto elecDensity = [&n_i](const double phi) -> double {
-					return n_i*std::exp(phi);
+					return std::exp(phi);
 				};
 
 	wfile.open("x-hole.dat");
