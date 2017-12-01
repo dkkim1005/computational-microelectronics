@@ -153,7 +153,7 @@ namespace ROOT_FINDING
 		{
 			object.residue(root, f);
 
-			double cost = std::sqrt(LINALG::inner_product(f, f, Ndim));
+			double cost = std::sqrt(LINALG::inner_product(f, f, Ndim))/Ndim;
 
 			std::cout<<"  iter: "<<n<<"\t\tcost: "<<cost<<std::endl;
 
@@ -329,109 +329,98 @@ void DriftDifussionEquation<PermittivityObj>::jacobian(const denseVector& root)
            		 p_im1,   p_i,   p_ip1,
 			 x_ip1,   x_i,   x_im1);
 
-        for(int n=3; n<_Ndim-3; ++n)
+        for(int i=1; i<_Ndim/3-1; ++i)
         {
-		const int i = n/3;
-		const int j = n - 3*i;
-
 		_index_rules(set, root, i);
 
-		switch(j)
-		{
-			case 0 :
-				_J.coeffRef(n, n-3  -j) = -_epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_im1
-				_J.coeffRef(n, n+0  -j) =  _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) +
-							   _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_i
-				_J.coeffRef(n, n+3  -j) = -_epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i); // dF/dpsi_ip1
+		_J.coeffRef(3*i, 3*i-3) = -_epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF_i,0/dpsi_im1
+		_J.coeffRef(3*i, 3*i+0) =  _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) +
+					   _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF_i,0/dpsi_i
+		_J.coeffRef(3*i, 3*i+3) = -_epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i); // dF_i,0/dpsi_ip1
 
-				_J.coeffRef(n, n+1  -j) =  std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dn_i
+		_J.coeffRef(3*i, 3*i+1) =  std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF_i,0/dn_i
 
-				_J.coeffRef(n, n+2  -j) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dp_i
+		_J.coeffRef(3*i, 3*i+2) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF_i,0/dp_i
 
-				break;
-			case 1:
-				_J.coeffRef(n, n-3  -j) =  1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_im1
-				_J.coeffRef(n, n+0  -j) = -1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i))
-							  -1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_i
-				_J.coeffRef(n, n+3  -j) =  1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i)); // dF/dpsi_ip1
 
-				_J.coeffRef(n, n-2  -j) =  1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dn_im1
-				_J.coeffRef(n, n+1  -j) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dn_i
-				_J.coeffRef(n, n+4  -j) =  1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i); // dF/dn_ip1
+		_J.coeffRef(3*i+1, 3*i-3) =  1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF_i,1/dpsi_im1
+		_J.coeffRef(3*i+1, 3*i+0) = -1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i))
+					    -1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF_i,1/dpsi_i
+		_J.coeffRef(3*i+1, 3*i+3) =  1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i)); // dF_i,1/dpsi_ip1
 
-				break;
-			case 2:
-				_J.coeffRef(n, n-3  -j) = 1./(x_i - x_im1)*(-p_i*BERNOULLI::df(-psi_i + psi_im1) - p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_im1
-				_J.coeffRef(n, n+0  -j) = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) + p_i*BERNOULLI::df(psi_ip1 - psi_i)) +
-							  1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_i
-				_J.coeffRef(n, n+3  -j) = 1./(x_ip1 - x_i)*(-p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) - p_i*BERNOULLI::df(psi_ip1 - psi_i)); // dF/dpsi_ip1
+		_J.coeffRef(3*i+1, 3*i-2) =  1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF_i,1/dn_im1
+		_J.coeffRef(3*i+1, 3*i+1) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF_i,1/dn_i
+		_J.coeffRef(3*i+1, 3*i+4) =  1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i); // dF_i,1/dn_ip1
 
-				_J.coeffRef(n, n-1  -j) = 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dp_im1
-				_J.coeffRef(n, n+2  -j) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dp_i
-				_J.coeffRef(n, n+5  -j) = 1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i); // dF/dp_ip1
 
-				break;
-		}
+		_J.coeffRef(3*i+2, 3*i-3) =  1./(x_i - x_im1)*(-p_i*BERNOULLI::df(-psi_i + psi_im1) - p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF_i,2/dpsi_im1
+		_J.coeffRef(3*i+2, 3*i+0) =  1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) + p_i*BERNOULLI::df(psi_ip1 - psi_i)) +
+					     1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF_i,2/dpsi_i
+		_J.coeffRef(3*i+2, 3*i+3) =  1./(x_ip1 - x_i)*(-p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) - p_i*BERNOULLI::df(psi_ip1 - psi_i)); // dF_i,2/dpsi_ip1
+
+		_J.coeffRef(3*i+2, 3*i-1) =  1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF_i,2/dp_im1
+		_J.coeffRef(3*i+2, 3*i+2) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF_i,2/dp_i
+		_J.coeffRef(3*i+2, 3*i+5) =  1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i); // dF_i,2/dp_ip1
 	}
 
 	// At the x[1]
 	_index_rules(set, root, 0);
 
-	_J.coeffRef(0, 0) =  _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) + _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_i
-	_J.coeffRef(0, 3) = -_epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i); // dF/dpsi_ip1
+	_J.coeffRef(0, 0) =  _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) + _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF_0,0/dpsi_i
+	_J.coeffRef(0, 3) = -_epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i); // dF_0,0/dpsi_ip1
 
-	_J.coeffRef(0, 1) =  std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dn_i
+	_J.coeffRef(0, 1) =  std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF_0,0/dn_i
 
-	_J.coeffRef(0, 2) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dp_i
+	_J.coeffRef(0, 2) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF_0,0/dp_i
 
 	// ---------------------------------
 
 	_J.coeffRef(1, 0) = -1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i))
-			    -1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_i
+			    -1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF_0,1/dpsi_i
 
-	_J.coeffRef(1, 3) = 1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i)); // dF/dpsi_ip1
+	_J.coeffRef(1, 3) = 1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i)); // dF_0,1/dpsi_ip1
 
-	_J.coeffRef(1, 1) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dn_i
-	_J.coeffRef(1, 4) = 1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i); // dF/dn_ip1
+	_J.coeffRef(1, 1) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF_0,1/dn_i
+	_J.coeffRef(1, 4) = 1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i); // dF_0,1/dn_ip1
 
 	// ---------------------------------
 
 	_J.coeffRef(2, 0) = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) + p_i*BERNOULLI::df(psi_ip1 - psi_i)) +
-			    1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_i
-	_J.coeffRef(2, 3) = 1./(x_ip1 - x_i)*(-p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) - p_i*BERNOULLI::df(psi_ip1 - psi_i)); // dF/dpsi_ip1
+			    1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF_0,2/dpsi_i
+	_J.coeffRef(2, 3) = 1./(x_ip1 - x_i)*(-p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) - p_i*BERNOULLI::df(psi_ip1 - psi_i)); // dF_0,2/dpsi_ip1
 
-	_J.coeffRef(2, 2) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dp_i
-	_J.coeffRef(2, 5) = 1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i); // dF/dp_ip1
+	_J.coeffRef(2, 2) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF_0,2/dp_i
+	_J.coeffRef(2, 5) = 1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i); // dF_0,2/dp_ip1
 
 
 
 	// At the x[-2]
 	_index_rules(set, root, _Ndim/3-1);
 
-	_J.coeffRef(_Ndim-3, _Ndim-3 -3) = -_epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_im1
-	_J.coeffRef(_Ndim-3, _Ndim-3) = _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) + _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF/dpsi_i
+	_J.coeffRef(_Ndim-3, _Ndim-3 -3) = -_epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF_-1,0/dpsi_im1
+	_J.coeffRef(_Ndim-3, _Ndim-3) = _epsf((x_ip1+x_i)/2.)/(x_ip1 - x_i) + _epsf((x_im1+x_i)/2.)/(x_i - x_im1); // dF_-1,0/dpsi_i
 
-	_J.coeffRef(_Ndim-3, _Ndim-3 +1) = std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dn_i
+	_J.coeffRef(_Ndim-3, _Ndim-3 +1) = std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF_-1,0/dn_i
 
-	_J.coeffRef(_Ndim-3, _Ndim-3 +2) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF/dp_i
+	_J.coeffRef(_Ndim-3, _Ndim-3 +2) = -std::pow(_scale, 2)*_coeff*(x_i - x_im1); // dF_-1,0/dp_i
 
 	// ---------------------------------
 
-	_J.coeffRef(_Ndim-2, _Ndim-3 -3) = 1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_im1
+	_J.coeffRef(_Ndim-2, _Ndim-3 -3) = 1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF_-1,1/dpsi_im1
 	_J.coeffRef(_Ndim-2, _Ndim-3) = -1./(x_ip1 - x_i)*(n_ip1*BERNOULLI::df(psi_ip1 - psi_i) + n_i*BERNOULLI::df(-psi_ip1 + psi_i))
-					-1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF/dpsi_i
+					-1./(x_i - x_im1)*(n_i*BERNOULLI::df(psi_i - psi_im1) + n_im1*BERNOULLI::df(-psi_i + psi_im1)); // dF_-1,1/dpsi_i
 
-	_J.coeffRef(_Ndim-2, _Ndim-3 -2) = 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dn_im1
-	_J.coeffRef(_Ndim-2, _Ndim-3 +1) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dn_i
+	_J.coeffRef(_Ndim-2, _Ndim-3 -2) = 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF_-1,1/dn_im1
+	_J.coeffRef(_Ndim-2, _Ndim-3 +1) = -1./(x_ip1 - x_i)*BERNOULLI::f(-psi_ip1 + psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF_-1,1/dn_i
 
 	// ---------------------------------
 
-	_J.coeffRef(_Ndim-1, _Ndim-3 -3) = 1./(x_i - x_im1)*(-p_i*BERNOULLI::df(-psi_i + psi_im1) - p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_im1
+	_J.coeffRef(_Ndim-1, _Ndim-3 -3) = 1./(x_i - x_im1)*(-p_i*BERNOULLI::df(-psi_i + psi_im1) - p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF_-1,2/dpsi_im1
 	_J.coeffRef(_Ndim-1, _Ndim-3) = 1./(x_ip1 - x_i)*(p_ip1*BERNOULLI::df(-psi_ip1 + psi_i) + p_i*BERNOULLI::df(psi_ip1 - psi_i)) +
-					1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF/dpsi_i
+					1./(x_i - x_im1)*(p_i*BERNOULLI::df(-psi_i + psi_im1) + p_im1*BERNOULLI::df(psi_i - psi_im1)); // dF_-1,2/dpsi_i
 
-	_J.coeffRef(_Ndim-1, _Ndim-3 -1) = 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF/dp_im1
-	_J.coeffRef(_Ndim-1, _Ndim-3 +2) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF/dp_i
+	_J.coeffRef(_Ndim-1, _Ndim-3 -1) = 1./(x_i - x_im1)*BERNOULLI::f(psi_i - psi_im1); // dF_-1,2/dp_im1
+	_J.coeffRef(_Ndim-1, _Ndim-3 +2) = -1./(x_ip1 - x_i)*BERNOULLI::f(psi_ip1 - psi_i) - 1./(x_i - x_im1)*BERNOULLI::f(-psi_i + psi_im1); // dF_-1,2/dp_i
 
 
 	_J.makeCompressed();
@@ -687,7 +676,7 @@ int main(int argc, char* argv[])
 
 	rfile.close();
 
-	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 1000, 1e-3);
+	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 10, 1e-7);
 
 	std::ofstream wfile("result.dat");
 	wfile << x[0] << "\t" << std::setprecision(15) << bound[0] << "\t" << bound[1] << "\t" << bound[2] << std::endl;
