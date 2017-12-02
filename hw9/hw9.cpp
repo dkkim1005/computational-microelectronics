@@ -576,66 +576,101 @@ public:
 };
 
 
-/*
 namespace
 {
 	struct read_environment
 	{
 		void read(const char filename[])
 		{
-			std::cout << " --- read file: "<< filename << std::endl;
 			std::ifstream rfile(filename);
+			std::cout << " --- read file: "<< filename << std::endl;
 			if(!rfile.is_open())
 			{
 				std::cout << "  Error : there is no object file to read in the current directory!" << std::endl;
 				std::abort();
 			}
 
-			rfile >> Nx;
-			rfile >> Tsi;
-			rfile >> scale;
+			std::string tempstr;
+			int size = 0;
 
-			x = std::vector<double>(Nx);
-
-			for(int i=0; i<Nx; ++i) {
-				x[i] = Tsi/(Nx - 1)*i;
+			while(size == 0)
+			{
+				std::getline(rfile, tempstr);
+				size = tempstr.size();
 			}
 
+			// environment variables
+			_check_read(rfile, Nx);
+			_check_read(rfile, Tsi);
+			_check_read(rfile, dopping);
+			_check_read(rfile, scale);
+
+			size = 0;
+			while(size == 0)
+			{
+				std::getline(rfile, tempstr);
+				size = tempstr.size();
+			}
+
+			// boundary conditions
+			_check_read(rfile, psi_0);
+			_check_read(rfile, psi_m1);
+			_check_read(rfile, n_0);
+			_check_read(rfile, n_m1);
+			_check_read(rfile, p_0);
+			_check_read(rfile, p_m1);
 		}
 
-		std::vector<double> bound, x, Nplus;
-		double Nx, Tsi, scale;
+		template<class container>
+		void insert(container& bound) const
+		{
+			bound[0] = psi_0;
+			bound[1] = n_0;
+			bound[2] = p_0;
+			bound[3] = psi_m1;
+			bound[4] = n_m1;
+			bound[5] = p_m1;
+		}
+
+		double Nx, Tsi, dopping, scale,
+		       psi_0, psi_m1, n_0, n_m1, p_0, p_m1;
+
+	private:
+		void _check_read(std::ifstream& rfile, double& target)
+		{
+			if(rfile.eof())
+			{
+				std::cout << "check your file format" << std::endl;
+				std::abort();
+			}
+			std::string tempstr;
+			rfile >> tempstr; rfile >> target; std::getline(rfile, tempstr);
+		}
+
 	};
 }
-*/
 
 
 int main(int argc, char* argv[])
 {
-	constexpr int Nx = 503;
-	constexpr double Tsi = 1.; // [scale * micrometer]
+	::read_environment readObj;
+	readObj.read("indat");
+
+	const int    Nx    = readObj.Nx;
+	const double Tsi   = readObj.Tsi; // [scale * micrometer]
+	const double scale = readObj.scale;
 	constexpr double KbT = 0.025851984732130292; //(ev)
 	constexpr double n_i = 1.5e10; // [cm^-3]
 	constexpr double KbT_J = 300*1.3806488e-23; //(J)
 	constexpr double q0 = 1.6021766208e-19; // (C)
-	const double scale = 1.;
 
-	dvector dopping(Nx-2, 1e6/1.5), bound(6, 0);
+	dvector dopping(Nx-2, readObj.dopping/n_i), bound(6, 0);
         for(int i=0; i<dopping.size()/2; ++i) {
                 dopping[i] *= -1; // (N- range for 0 to 1[micrometer])
         }
 
-	// boundary condition 
-
-	// at the x[0]
-	bound[0] = -1.341000000000000014e+01;// psi := q*phi/KbT
-	bound[1] = 1.500000000000000038e-06;  //   n := n/n_i (n_i : intrinsic density of the silicon)
-	bound[2] = 6.666670000000000000e+05 ; //   p := p/n_i
-
-	// at the x[-1]
-	bound[3] = 1.341000000000000014e+01 ; // psi := q*phi/KbT
-	bound[4] = 6.666670000000000000e+05 ; //   n := n/n_i 
-	bound[5] = 1.500000000000000038e-06 ;  //   p := p/p_i 
+	// read boundary condition 
+	readObj.insert(bound);
 
 	dvector x(Nx, 0);
 
@@ -676,7 +711,7 @@ int main(int argc, char* argv[])
 
 	rfile.close();
 
-	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 10, 1e-7);
+	ROOT_FINDING::newton_method(DDEq, root, SPARSE_SOLVER::EIGEN::LUdecompSolver(), 20, 1e-7);
 
 	std::ofstream wfile("result.dat");
 	wfile << x[0] << "\t" << std::setprecision(15) << bound[0] << "\t" << bound[1] << "\t" << bound[2] << std::endl;
@@ -686,32 +721,6 @@ int main(int argc, char* argv[])
 	wfile << x[Nx-1] << "\t" << std::setprecision(15) << bound[3] << "\t" << bound[4] << "\t" << bound[5] << std::endl;
 
 	wfile.close();
-
-/*
-	std::ofstream wfile("x-qphi.dat");
-	wfile << x[0] << "\t" << std::setprecision(15) << bound[0]*KbT << "\n";
-	for(int i=0; i<Nx-2; ++i) {
-		wfile << x[i+1] << "\t" << root[3*i]*KbT << "\n";
-	}
-	wfile << x[Nx-1] << "\t" << bound[3]*KbT << "\n";
-	wfile.close();
-
-	wfile.open("x-hole.dat");
-	wfile << x[0] << "\t" << bound[2] << "\n";
-	for(int i=0; i<Nx-2; ++i) {
-		wfile << x[i+1] << "\t" << root[3*i+2] << "\n";
-	}
-	wfile << x[Nx-1] << "\t" << bound[5] << "\n";
-	wfile.close();
-
-	wfile.open("x-elec.dat");
-	wfile << x[0] << "\t" << bound[1] << "\n";
-	for(int i=0; i<Nx-2; ++i) {
-		wfile << x[i+1] << "\t" << root[3*i+1] << "\n";
-	}
-	wfile << x[Nx-1] << "\t" << bound[4] << "\n";
-	wfile.close();
-*/
 
 	return 0;
 }
