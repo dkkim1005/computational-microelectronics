@@ -1,0 +1,15 @@
+# Setting environment variables (do not delete this line)
+
+Nx:	503				# discrete number of the x axis
+Tsi:	1				# [scale * micrometer]
+Dopping: 1e16				# dopping rate
+scale:	1				# scale parameter
+
+# Setting boundary conditions (do not delete this line)
+
+psi_0:	-13.41				# q*phi(x_{0})/KbT
+psi_-1:	 13.41				# q*phi(x_{-1})/KbT
+n_0:	1.5e-06				# n_{0}/n_i
+n_-1:	6.66667e+05			# n_{-1}/n_i
+p_0:	6.66667e+05			# p_{0}/n_i
+p_-1:	1.5e-06				# p_{-1}/n_i
